@@ -14,6 +14,8 @@ import Nutrition from "@/pages/Nutrition";
 import Sleep from "@/pages/Sleep";
 import Family from "@/pages/Family";
 import FamilyViewer from "@/pages/FamilyViewer";
+import Community from "@/pages/Community";
+import CommunityDetail from "@/pages/CommunityDetail";
 import { MedicationReminderProvider } from "@/components/medication/MedicationReminderContext";
 
 export default function App() {
@@ -36,6 +38,8 @@ export default function App() {
             <Route path="/sleep" element={<Sleep />} />
             <Route path="/family" element={<Family />} />
             <Route path="/family-viewer" element={<FamilyViewer />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/community/:id" element={<CommunityDetail />} />
           </Routes>
         </Layout>
       </MedicationReminderProvider>

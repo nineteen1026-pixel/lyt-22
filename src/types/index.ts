@@ -495,6 +495,55 @@ export interface MaskedHealthData {
   nutrition?: MaskedNutritionSummary;
 }
 
+export interface CommunityTag {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface CommunityTopic {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  lifeStage: LifeStage;
+  questionCount: number;
+  isHot: boolean;
+}
+
+export interface CommunityAnswer {
+  id: string;
+  questionId: string;
+  content: string;
+  authorName: string;
+  authorAvatar?: string;
+  isExpert: boolean;
+  isFeatured: boolean;
+  createdAt: string;
+  likes: number;
+  isLiked: boolean;
+}
+
+export interface CommunityQuestion {
+  id: string;
+  title: string;
+  content: string;
+  isAnonymous: boolean;
+  authorName: string;
+  authorAvatar?: string;
+  topicId: string;
+  topicName: string;
+  lifeStage: LifeStage;
+  tags: CommunityTag[];
+  createdAt: string;
+  views: number;
+  likes: number;
+  isLiked: boolean;
+  answerCount: number;
+  answers: CommunityAnswer[];
+  hasFeaturedAnswer: boolean;
+}
+
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
