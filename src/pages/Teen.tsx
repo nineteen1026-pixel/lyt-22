@@ -56,6 +56,8 @@ export default function TeenPage() {
   const [selectedMood, setSelectedMood] = useState('平静');
   const [cycleLength, setCycleLength] = useState(cycleData.cycleLength);
   const [periodLength, setPeriodLength] = useState(cycleData.periodLength);
+  const [firstPeriodDate, setFirstPeriodDate] = useState(cycleData.firstPeriodDate);
+  const [lastPeriodDate, setLastPeriodDate] = useState(cycleData.lastPeriodDate);
 
   const nextPeriod = getNextPeriodDate();
 
@@ -122,6 +124,8 @@ export default function TeenPage() {
     setCycleData({
       cycleLength,
       periodLength,
+      firstPeriodDate,
+      lastPeriodDate,
     });
   };
 
@@ -246,9 +250,19 @@ export default function TeenPage() {
                 <span className="text-gray-600">经期长度</span>
                 <span className="font-bold text-rose-600">{cycleData.periodLength} 天</span>
               </div>
+              {cycleData.firstPeriodDate && (
+                <div className="flex items-center justify-between p-3 bg-amber-50 rounded-xl">
+                  <span className="text-gray-600">初潮日期</span>
+                  <span className="font-bold text-amber-600 text-sm">{cycleData.firstPeriodDate}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl">
+                <span className="text-gray-600">末次月经</span>
+                <span className="font-bold text-purple-600 text-sm">{cycleData.lastPeriodDate}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl">
                 <span className="text-gray-600">下次经期</span>
-                <span className="font-bold text-purple-600 text-sm">{nextPeriod}</span>
+                <span className="font-bold text-indigo-600 text-sm">{nextPeriod}</span>
               </div>
             </div>
           </div>
@@ -259,6 +273,24 @@ export default function TeenPage() {
               周期设置
             </h2>
             <div className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-600 mb-1 block">初潮日期</label>
+                <input
+                  type="date"
+                  value={firstPeriodDate}
+                  onChange={(e) => setFirstPeriodDate(e.target.value)}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600 mb-1 block">末次月经日期</label>
+                <input
+                  type="date"
+                  value={lastPeriodDate}
+                  onChange={(e) => setLastPeriodDate(e.target.value)}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all"
+                />
+              </div>
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">周期长度 (天)</label>
                 <input

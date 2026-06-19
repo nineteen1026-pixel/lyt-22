@@ -19,6 +19,7 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 const initialCycleData: CycleData = {
   cycleLength: 28,
   periodLength: 5,
+  firstPeriodDate: '',
   lastPeriodDate: lastPeriod.toISOString().split('T')[0],
   records: [
     {

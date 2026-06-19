@@ -1,5 +1,5 @@
 import { NavLink, Link } from 'react-router-dom';
-import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Smile } from 'lucide-react';
+import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Smile, Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/pregnancy-prep', label: '备孕期', icon: Baby },
   { to: '/pregnancy', label: '孕期', icon: Stethoscope },
   { to: '/relief', label: '痛经舒缓', icon: Smile },
+  { to: '/mood', label: '情绪治愈', icon: Palette },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

@@ -10,6 +10,7 @@ export interface PeriodRecord {
 export interface CycleData {
   cycleLength: number;
   periodLength: number;
+  firstPeriodDate: string;
   lastPeriodDate: string;
   records: PeriodRecord[];
 }
