@@ -1,6 +1,7 @@
 import { NavLink, Link } from 'react-router-dom';
 import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Leaf, Smile, Palette, Flower2, Pill } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import GlobalMedicationPopup from '@/components/medication/GlobalMedicationPopup';
 
 const navItems = [
   { to: '/', label: '首页', icon: Heart, end: true },
@@ -93,6 +94,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1">
         {children}
       </main>
+
+      <GlobalMedicationPopup />
 
       <footer className="glass border-t border-white/30 py-6 mt-12">
         <div className="container mx-auto px-4 text-center">

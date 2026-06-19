@@ -10,24 +10,27 @@ import Relief from "@/pages/Relief";
 import Mood from "@/pages/Mood";
 import MenopauseCare from "@/pages/Menopause";
 import Medication from "@/pages/Medication";
+import { MedicationReminderProvider } from "@/components/medication/MedicationReminderContext";
 
 export default function App() {
   return (
     <Router>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/teen" element={<Teen />} />
-          <Route path="/career" element={<Career />} />
-          <Route path="/pregnancy-prep" element={<PregnancyPrep />} />
-          <Route path="/pregnancy" element={<Pregnancy />} />
-          <Route path="/postpartum" element={<Postpartum />} />
-          <Route path="/relief" element={<Relief />} />
-          <Route path="/medication" element={<Medication />} />
-          <Route path="/mood" element={<Mood />} />
-          <Route path="/menopause" element={<MenopauseCare />} />
-        </Routes>
-      </Layout>
+      <MedicationReminderProvider>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/teen" element={<Teen />} />
+            <Route path="/career" element={<Career />} />
+            <Route path="/pregnancy-prep" element={<PregnancyPrep />} />
+            <Route path="/pregnancy" element={<Pregnancy />} />
+            <Route path="/postpartum" element={<Postpartum />} />
+            <Route path="/relief" element={<Relief />} />
+            <Route path="/medication" element={<Medication />} />
+            <Route path="/mood" element={<Mood />} />
+            <Route path="/menopause" element={<MenopauseCare />} />
+          </Routes>
+        </Layout>
+      </MedicationReminderProvider>
     </Router>
   );
 }
