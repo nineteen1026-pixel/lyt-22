@@ -107,6 +107,10 @@ export default function IntakeTracker() {
   const getRecordNutrition = (record: typeof dayRecords[0]) => {
     let calories = 0;
     let protein = 0;
+    if (record.recipeNutrition) {
+      calories += record.recipeNutrition.calories;
+      protein += record.recipeNutrition.protein;
+    }
     for (const item of record.foodItems) {
       const food = getFoodById(item.foodItemId);
       if (food) {
@@ -204,6 +208,11 @@ export default function IntakeTracker() {
                             <span className="text-sm text-gray-700">{nutrition.protein}g 蛋白</span>
                           </div>
                           <div className="flex flex-wrap gap-2">
+                            {record.recipeNutrition && (
+                              <span className="px-2 py-1 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg text-xs text-orange-700 font-medium border border-orange-100">
+                                🍽️ {record.recipeNutrition.recipeName}
+                              </span>
+                            )}
                             {record.foodItems.map((item, idx) => {
                               const food = getFoodById(item.foodItemId);
                               return (

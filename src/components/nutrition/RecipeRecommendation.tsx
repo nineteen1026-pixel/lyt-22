@@ -35,7 +35,7 @@ const lifeStageLabels: Record<string, string> = {
 };
 
 export default function RecipeRecommendation() {
-  const { selectedLifeStage, getRecipesByLifeStage, addFoodIntakeRecord, foodItems } = useNutritionStore();
+  const { selectedLifeStage, getRecipesByLifeStage, addFoodIntakeRecord } = useNutritionStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showAddSuccess, setShowAddSuccess] = useState(false);
@@ -53,18 +53,17 @@ export default function RecipeRecommendation() {
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().slice(0, 5),
       mealType: mealType as 'breakfast' | 'lunch' | 'dinner' | 'snack',
-      foodItems: recipe.ingredients
-        .filter((_, i) => i < 3)
-        .map((ing) => {
-          const matchedFood = foodItems.find((f) =>
-            ing.name.includes(f.name) || f.name.includes(ing.name)
-          );
-          return {
-            foodItemId: matchedFood?.id || foodItems[0].id,
-            servings: 1,
-          };
-        }),
-      notes: `添加食谱：${recipe.name}`,
+      foodItems: [],
+      recipeNutrition: {
+        recipeId: recipe.id,
+        recipeName: recipe.name,
+        calories: recipe.calories,
+        protein: recipe.protein,
+        carbs: recipe.carbs,
+        fat: recipe.fat,
+        nutrients: recipe.nutrients,
+      },
+      notes: `添加食谱：${recipe.name}（${recipe.calories}kcal）`,
     };
     addFoodIntakeRecord(record);
     setShowAddSuccess(true);

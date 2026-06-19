@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   UtensilsCrossed,
   BookOpen,
@@ -43,10 +43,16 @@ export default function Nutrition() {
     getWeeklyNutritionTrend,
     getNutrientGapAnalysis,
     getRecipesByLifeStage,
+    getCalorieTarget,
+    syncWithAppStoreLifeStage,
     foodIntakeRecords,
   } = useNutritionStore();
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
+
+  useEffect(() => {
+    syncWithAppStoreLifeStage();
+  }, [syncWithAppStoreLifeStage]);
 
   const today = new Date().toISOString().split('T')[0];
   const todaySummary = getDailyNutritionSummary(today);
@@ -54,6 +60,10 @@ export default function Nutrition() {
   const gapAnalysis = getNutrientGapAnalysis(today);
   const stageRecipes = getRecipesByLifeStage(selectedLifeStage);
   const todayRecords = foodIntakeRecords.filter((r) => r.date === today);
+  const calorieTarget = getCalorieTarget(selectedLifeStage);
+  const nutritionScore = todaySummary.totalCalories > 0
+    ? Math.min(100, Math.round((todaySummary.totalCalories / calorieTarget) * 100))
+    : 0;
 
   const lowNutrients = gapAnalysis.filter((n) => n.percentage < 80).slice(0, 3);
 
@@ -180,7 +190,7 @@ export default function Nutrition() {
                       <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full transition-all"
-                          style={{ width: `${Math.min((day.calories / 2000) * 100, 100)}%` }}
+                          style={{ width: `${Math.min((day.calories / calorieTarget) * 100, 100)}%` }}
                         />
                       </div>
                       <span className="text-sm font-medium text-gray-700 w-16 text-right">{day.calories} kcal</span>
@@ -299,14 +309,14 @@ export default function Nutrition() {
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
 
         <div className="relative z-10">
-          <p className="text-white/80 text-sm mb-1">今日营养评分</p>
+          <p className="text-white/80 text-sm mb-1">今日营养评分 · {lifeStageLabels[selectedLifeStage]}目标</p>
           <h2 className="font-display text-4xl font-bold mb-2">
-            {todaySummary.totalCalories > 0 ? Math.round((todaySummary.totalCalories / 2000) * 100) : 0} 分
+            {nutritionScore} 分
           </h2>
           <p className="text-white/90">
             {todaySummary.totalCalories > 0
-              ? `已摄入 ${todaySummary.totalCalories} 卡路里，目标 2000 卡路里`
-              : '还没有记录饮食，快来记录今天的第一餐吧~'}
+              ? `已摄入 ${todaySummary.totalCalories} 卡路里，目标 ${calorieTarget} 卡路里`
+              : `还没有记录饮食，快来记录今天的第一餐吧~（${lifeStageLabels[selectedLifeStage]}每日目标 ${calorieTarget} kcal）`}
           </p>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useNutritionStore } from '@/store/useNutritionStore';
 import type { LifeStage } from '@/types';
 import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const lifeStageOptions: { value: LifeStage; label: string; description: string }[] = [
   { value: 'teen', label: '少女期', description: '10-18岁，青春期发育' },
@@ -13,8 +13,12 @@ const lifeStageOptions: { value: LifeStage; label: string; description: string }
 ];
 
 export default function LifeStageSelector() {
-  const { selectedLifeStage, setSelectedLifeStage } = useNutritionStore();
+  const { selectedLifeStage, setSelectedLifeStage, syncWithAppStoreLifeStage } = useNutritionStore();
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    syncWithAppStoreLifeStage();
+  }, [syncWithAppStoreLifeStage]);
 
   const currentStage = lifeStageOptions.find((s) => s.value === selectedLifeStage);
 

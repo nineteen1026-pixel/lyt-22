@@ -17,7 +17,9 @@ import {
   nutrientNames,
   nutrientUnits,
   nutrientCategories,
+  calorieTargetByLifeStage,
 } from '@/mock/nutrition';
+import { useAppStore } from '@/store/useAppStore';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -28,13 +30,25 @@ export interface NutritionState {
   nutrientRDAs: NutrientRDAByStage[];
   selectedLifeStage: LifeStage;
   setSelectedLifeStage: (stage: LifeStage) => void;
+  syncWithAppStoreLifeStage: () => void;
   addFoodIntakeRecord: (record: Omit<FoodIntakeRecord, 'id'>) => void;
   deleteFoodIntakeRecord: (id: string) => void;
   getRecipesByLifeStage: (stage: LifeStage) => Recipe[];
+  getCalorieTarget: (stage?: LifeStage) => number;
   getDailyNutritionSummary: (date: string) => DailyNutritionSummary;
   getNutrientGapAnalysis: (date: string) => NutrientGapItem[];
   getWeeklyNutritionTrend: () => { date: string; calories: number; protein: number }[];
 }
+
+const getInitialLifeStage = (): LifeStage => {
+  try {
+    const appState = useAppStore.getState();
+    if (appState?.lifeStage) return appState.lifeStage;
+  } catch {
+    // ignore
+  }
+  return 'teen';
+};
 
 export const useNutritionStore = create<NutritionState>()(
   persist(
@@ -43,9 +57,29 @@ export const useNutritionStore = create<NutritionState>()(
       recipes: mockRecipes,
       foodIntakeRecords: mockFoodIntakeRecords,
       nutrientRDAs: mockNutrientRDAs,
-      selectedLifeStage: 'teen',
+      selectedLifeStage: getInitialLifeStage(),
 
-      setSelectedLifeStage: (stage: LifeStage) => set({ selectedLifeStage: stage }),
+      syncWithAppStoreLifeStage: () => {
+        try {
+          const appStage = useAppStore.getState().lifeStage;
+          const { selectedLifeStage } = get();
+          if (appStage && appStage !== selectedLifeStage) {
+            set({ selectedLifeStage: appStage });
+          }
+        } catch {
+          // ignore
+        }
+      },
+
+      setSelectedLifeStage: (stage: LifeStage) => {
+        set({ selectedLifeStage: stage });
+        try {
+          const appSet = useAppStore.getState().setLifeStage;
+          if (appSet) appSet(stage);
+        } catch {
+          // ignore
+        }
+      },
 
       addFoodIntakeRecord: (record) =>
         set((state) => ({
@@ -62,6 +96,11 @@ export const useNutritionStore = create<NutritionState>()(
         return recipes.filter((r) => r.lifeStages.includes(stage));
       },
 
+      getCalorieTarget: (stage?: LifeStage) => {
+        const targetStage = stage || get().selectedLifeStage;
+        return calorieTargetByLifeStage[targetStage] ?? 2000;
+      },
+
       getDailyNutritionSummary: (date: string) => {
         const { foodIntakeRecords, foodItems } = get();
         const dayRecords = foodIntakeRecords.filter((r) => r.date === date);
@@ -73,6 +112,18 @@ export const useNutritionStore = create<NutritionState>()(
         const nutrientMap = new Map<string, number>();
 
         for (const record of dayRecords) {
+          if (record.recipeNutrition) {
+            const r = record.recipeNutrition;
+            totalCalories += r.calories;
+            totalProtein += r.protein;
+            totalCarbs += r.carbs;
+            totalFat += r.fat;
+            for (const n of r.nutrients) {
+              const current = nutrientMap.get(n.nutrientId) || 0;
+              nutrientMap.set(n.nutrientId, current + n.amount);
+            }
+          }
+
           for (const item of record.foodItems) {
             const food = foodItems.find((f) => f.id === item.foodItemId);
             if (food) {
@@ -161,6 +212,11 @@ export const useNutritionStore = create<NutritionState>()(
         foodIntakeRecords: state.foodIntakeRecords,
         selectedLifeStage: state.selectedLifeStage,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          setTimeout(() => state.syncWithAppStoreLifeStage(), 0);
+        }
+      },
     }
   )
 );

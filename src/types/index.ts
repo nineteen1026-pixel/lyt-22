@@ -289,6 +289,15 @@ export interface FoodIntakeRecord {
   time: string;
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   foodItems: { foodItemId: string; servings: number }[];
+  recipeNutrition?: {
+    recipeId: string;
+    recipeName: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    nutrients: { nutrientId: string; amount: number }[];
+  };
   notes?: string;
 }
 

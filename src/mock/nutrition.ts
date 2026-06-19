@@ -620,3 +620,12 @@ export const nutrientCategories: Record<string, string> = {
   vitamin_d: 'vitamin',
   folic_acid: 'vitamin',
 };
+
+export const calorieTargetByLifeStage: Record<string, number> = {
+  teen: 2200,
+  career: 1900,
+  'pregnancy-prep': 2000,
+  pregnancy: 2400,
+  postpartum: 2500,
+  menopause: 1800,
+};
