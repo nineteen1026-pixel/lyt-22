@@ -455,11 +455,36 @@ export interface MaskedMedicationSummary {
   adherenceRate: number;
 }
 
+export interface MaskedPregnancySummary {
+  currentWeek: number;
+  dueDate: string;
+  upcomingCheckupCount: number;
+  completedCheckupCount: number;
+}
+
+export interface MaskedPostpartumSummary {
+  daysPostpartum: number;
+  recoveryPhase: string;
+  breastfeedingTodayCount?: number;
+  pelvicFloorExercisesThisWeek: number;
+  upcomingCheckupCount: number;
+}
+
+export interface MaskedNutritionSummary {
+  todayCalories: number;
+  calorieTarget: number;
+  proteinAdequacy: number;
+  keyGaps: string[];
+}
+
 export interface MaskedHealthData {
   cycle?: MaskedCycleSummary;
   sleep?: MaskedSleepSummary;
   mood?: MaskedMoodSummary;
   medication?: MaskedMedicationSummary;
+  pregnancy?: MaskedPregnancySummary;
+  postpartum?: MaskedPostpartumSummary;
+  nutrition?: MaskedNutritionSummary;
 }
 
 export interface AppState {
