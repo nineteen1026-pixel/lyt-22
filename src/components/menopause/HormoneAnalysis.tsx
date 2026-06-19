@@ -255,7 +255,7 @@ export default function HormoneAnalysis() {
               hormoneStatus === 'highRisk' ? 'text-red-400' :
               hormoneStatus === 'monitor' ? 'text-amber-400' : 'text-mint-400'
             )} />
-            <div className="flex-1">
+            <div>
               <p className={cn(
                 'text-sm font-medium',
                 hormoneStatus === 'highRisk' ? 'text-red-700' :
@@ -271,19 +271,25 @@ export default function HormoneAnalysis() {
                   ? '部分指标有波动，建议定期复查并记录变化趋势。'
                   : '当前激素水平在可控范围，保持规律监测即可。'}
               </p>
-              {analysisItems.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                  <p className="text-xs font-medium text-gray-600 mb-1.5">多维度关联分析</p>
-                  <ul className="space-y-1">
-                    {analysisItems.map((item, idx) => (
-                      <li key={idx} className={`flex items-start gap-2 text-xs ${item.color}`}>
-                        <span className="flex-shrink-0">{item.icon}</span>
-                        <span>{item.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {analysisItems.length > 0 && (
+        <div className="card p-4 mb-6 bg-gradient-to-r from-lavender-50/80 to-purple-50/80 border border-lavender-200/50">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 mt-0.5 flex-shrink-0 text-lavender-400" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-700 mb-1.5">多维度关联分析</p>
+              <ul className="space-y-1.5">
+                {analysisItems.map((item, idx) => (
+                  <li key={idx} className={`flex items-start gap-2 text-xs ${item.color}`}>
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    <span>{item.text}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
