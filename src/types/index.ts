@@ -13,6 +13,51 @@ export interface CycleData {
   firstPeriodDate: string;
   lastPeriodDate: string;
   records: PeriodRecord[];
+  periodStartDates?: string[];
+}
+
+export interface CycleStatistics {
+  avgCycleLength: number;
+  avgPeriodLength: number;
+  medianCycleLength: number;
+  stdDevCycle: number;
+  minCycleLength: number;
+  maxCycleLength: number;
+  cycleCount: number;
+  regularityScore: number;
+}
+
+export interface PredictionResult {
+  predictedNextStart: string;
+  predictedNextEnd: string;
+  confidenceIntervalStart: string;
+  confidenceIntervalEnd: string;
+  confidenceLevel: 'low' | 'medium' | 'high';
+  confidencePercent: number;
+  ovulationDate: string;
+  fertileWindowStart: string;
+  fertileWindowEnd: string;
+  daysUntilNextPeriod: number;
+  cyclePhase: 'period' | 'follicular' | 'ovulation' | 'fertile' | 'luteal' | 'predicted_period';
+  statistics: CycleStatistics;
+}
+
+export type CalendarDayType =
+  | 'empty'
+  | 'normal'
+  | 'period'
+  | 'predicted_period'
+  | 'predicted_early'
+  | 'predicted_late'
+  | 'ovulation'
+  | 'fertile'
+  | 'today';
+
+export interface CalendarDayInfo {
+  type: CalendarDayType;
+  date: string;
+  isToday: boolean;
+  confidence?: number;
 }
 
 export interface OvertimeRecord {
@@ -207,4 +252,8 @@ export interface AppState {
   getHotFlashTrend: () => { date: string; count: number; avgSeverity: number }[];
   getSleepTrend: () => { date: string; avgQuality: number; avgDuration: number }[];
   getHormoneTrend: () => { date: string; estrogen?: number; progesterone?: number; fsh?: number; lh?: number }[];
+  extractPeriodStartDates: () => string[];
+  getCycleStatistics: () => CycleStatistics;
+  getPeriodPrediction: () => PredictionResult;
+  getCalendarDayInfo: (year: number, month: number, day: number) => CalendarDayInfo;
 }
