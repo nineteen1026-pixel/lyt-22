@@ -25,6 +25,11 @@ import type {
   MedicationRecord,
   MedicationCategory,
   PainRecord,
+  CyclePhase,
+  SleepCycleAssociation,
+  PhaseSleepStatistics,
+  SleepImpactAnalysis,
+  SleepRecommendation,
 } from '@/types';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -410,29 +415,68 @@ const mockHotFlashRecords: HotFlashRecord[] = [
   },
 ];
 
-const mockSleepRecords: SleepRecord[] = [
-  {
-    id: generateId(),
-    date: new Date().toISOString().split('T')[0],
-    bedTime: '23:00',
-    wakeTime: '06:30',
-    duration: 7.5,
-    quality: 3,
-    interruptions: 2,
-    nightSweats: true,
-  },
-  {
-    id: generateId(),
-    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-    bedTime: '23:30',
-    wakeTime: '05:30',
-    duration: 6,
-    quality: 2,
-    interruptions: 3,
-    nightSweats: true,
-    notes: '潮热醒来两次',
-  },
-];
+const mockSleepRecords: SleepRecord[] = (() => {
+  const records: SleepRecord[] = [];
+  const today = new Date();
+  
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const dayInCycle = i % 28;
+    let duration = 7;
+    let quality: 1 | 2 | 3 | 4 | 5 = 3;
+    let interruptions = 1;
+    let nightSweats = false;
+    let bedTime = '23:00';
+    let wakeTime = '07:00';
+    
+    if (dayInCycle >= 0 && dayInCycle < 5) {
+      duration = 6.5 - Math.random() * 1.5;
+      quality = (dayInCycle === 0 || dayInCycle === 1) ? 2 : 3;
+      interruptions = 2 + Math.floor(Math.random() * 2);
+      nightSweats = Math.random() > 0.5;
+      bedTime = '23:30';
+      wakeTime = '06:00';
+    } else if (dayInCycle >= 5 && dayInCycle < 12) {
+      duration = 7.5 + Math.random() * 1;
+      quality = 4;
+      interruptions = 0;
+      nightSweats = false;
+      bedTime = '22:30';
+      wakeTime = '06:30';
+    } else if (dayInCycle >= 12 && dayInCycle < 16) {
+      duration = 7 + Math.random() * 0.5;
+      quality = 3;
+      interruptions = 1;
+      nightSweats = false;
+      bedTime = '23:00';
+      wakeTime = '06:30';
+    } else if (dayInCycle >= 16 && dayInCycle < 28) {
+      duration = 6.5 - Math.random() * 1;
+      quality = dayInCycle > 24 ? 2 : 3;
+      interruptions = 1 + Math.floor(Math.random() * 2);
+      nightSweats = dayInCycle > 22 ? Math.random() > 0.6 : false;
+      bedTime = '23:30';
+      wakeTime = '06:00';
+    }
+    
+    records.push({
+      id: generateId(),
+      date: dateStr,
+      bedTime,
+      wakeTime,
+      duration: Number(duration.toFixed(1)),
+      quality,
+      interruptions,
+      nightSweats,
+      notes: i === 0 ? '今天感觉有些疲劳' : undefined,
+    });
+  }
+  
+  return records;
+})();
 
 const mockHormoneRecords: HormoneRecord[] = [
   {
@@ -1122,6 +1166,542 @@ export const useAppStore = create<AppState>()(
             lh: r.lhLevel,
           }))
           .sort((a, b) => a.date.localeCompare(b.date));
+      },
+
+      getCyclePhaseForDate: (dateString: string) => {
+        const state = get();
+        const starts = state.extractPeriodStartDates();
+        const date = new Date(dateString);
+        const pred = state.getPeriodPrediction();
+        const stats = state.getCycleStatistics();
+        const periodLen = Math.round(stats.avgPeriodLength);
+        const avgCycle = Math.round(stats.avgCycleLength);
+
+        let nearestStart: string | null = null;
+        let minDiff = Infinity;
+        for (const start of starts) {
+          const d = diffDays(date, new Date(start));
+          if (d >= 0 && d < minDiff) {
+            minDiff = d;
+            nearestStart = start;
+          }
+        }
+
+        if (!nearestStart) {
+          const nextStart = new Date(pred.predictedNextStart);
+          const prevStart = addDays(nextStart, -avgCycle);
+          const d = diffDays(date, prevStart);
+          if (d >= 0 && d < avgCycle) {
+            nearestStart = dateStr(prevStart);
+            minDiff = d;
+          } else {
+            return { phase: 'unknown' as CyclePhase, cycleDay: 0, periodStartDate: null };
+          }
+        }
+
+        const cycleDay = minDiff + 1;
+        let phase: CyclePhase = 'unknown';
+
+        if (cycleDay <= periodLen) {
+          phase = 'period';
+        } else if (cycleDay < avgCycle - 16) {
+          phase = 'follicular';
+        } else if (cycleDay >= avgCycle - 16 && cycleDay <= avgCycle - 12) {
+          phase = 'ovulation';
+        } else if (cycleDay > avgCycle - 12 && cycleDay <= avgCycle) {
+          phase = 'luteal';
+        }
+
+        return { phase, cycleDay, periodStartDate: nearestStart };
+      },
+
+      getSleepCycleAssociation: (): SleepCycleAssociation[] => {
+        const state = get();
+        const { sleepRecords } = state;
+
+        return sleepRecords
+          .slice()
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .map((record) => {
+            const { phase, cycleDay } = state.getCyclePhaseForDate(record.date);
+            return {
+              date: record.date,
+              cyclePhase: phase,
+              cycleDay,
+              sleepDuration: record.duration,
+              sleepQuality: record.quality,
+              interruptions: record.interruptions,
+              nightSweats: record.nightSweats,
+            };
+          });
+      },
+
+      getPhaseSleepStatistics: (): PhaseSleepStatistics[] => {
+        const state = get();
+        const associations = state.getSleepCycleAssociation();
+        const phaseNames: Record<CyclePhase, string> = {
+          period: '月经期',
+          follicular: '卵泡期',
+          ovulation: '排卵期',
+          luteal: '黄体期',
+          unknown: '未知',
+        };
+
+        const phases: CyclePhase[] = ['period', 'follicular', 'ovulation', 'luteal'];
+        return phases.map((phase) => {
+          const phaseData = associations.filter((a) => a.cyclePhase === phase);
+          if (phaseData.length === 0) {
+            return {
+              phase,
+              phaseName: phaseNames[phase],
+              sampleCount: 0,
+              avgDuration: 0,
+              avgQuality: 0,
+              avgInterruptions: 0,
+              nightSweatRate: 0,
+            };
+          }
+
+          const durations = phaseData.map((d) => d.sleepDuration);
+          const qualities = phaseData.map((d) => d.sleepQuality);
+          const avgDur = durations.reduce((a, b) => a + b, 0) / durations.length;
+          const avgQual = qualities.reduce((a, b) => a + b, 0) / qualities.length;
+          const avgInt = phaseData.reduce((a, b) => a + b.interruptions, 0) / phaseData.length;
+          const nightSweatRate = (phaseData.filter((d) => d.nightSweats).length / phaseData.length) * 100;
+
+          const durStdDev = Math.sqrt(
+            durations.reduce((a, b) => a + Math.pow(b - avgDur, 2), 0) / durations.length
+          );
+          const qualStdDev = Math.sqrt(
+            qualities.reduce((a, b) => a + Math.pow(b - avgQual, 2), 0) / qualities.length
+          );
+
+          return {
+            phase,
+            phaseName: phaseNames[phase],
+            sampleCount: phaseData.length,
+            avgDuration: Number(avgDur.toFixed(1)),
+            avgQuality: Number(avgQual.toFixed(1)),
+            avgInterruptions: Number(avgInt.toFixed(1)),
+            nightSweatRate: Number(nightSweatRate.toFixed(1)),
+            durationStdDev: Number(durStdDev.toFixed(2)),
+            qualityStdDev: Number(qualStdDev.toFixed(2)),
+          };
+        });
+      },
+
+      getSleepImpactAnalysis: (): SleepImpactAnalysis => {
+        const state = get();
+        const { sleepRecords, painRecords, cycleData } = state;
+        const stats = state.getCycleStatistics();
+        const phaseStats = state.getPhaseSleepStatistics();
+        const associations = state.getSleepCycleAssociation();
+
+        const overallScore = sleepRecords.length > 0
+          ? Math.min(100, Math.round(
+              sleepRecords.reduce((sum, r) => {
+                const durationScore = Math.min(100, (r.duration / 8) * 100);
+                const qualityScore = (r.quality / 5) * 100;
+                const interruptionPenalty = r.interruptions * 5;
+                return sum + Math.max(0, (durationScore + qualityScore) / 2 - interruptionPenalty);
+              }, 0) / sleepRecords.length
+            ))
+          : 0;
+
+        const periodPhase = phaseStats.find((p) => p.phase === 'period');
+        const follicularPhase = phaseStats.find((p) => p.phase === 'follicular');
+        const lutealPhase = phaseStats.find((p) => p.phase === 'luteal');
+
+        let cycleLengthVariation = 0;
+        let periodLengthVariation = 0;
+        if (stats.cycleCount >= 3) {
+          cycleLengthVariation = stats.stdDevCycle;
+          const periodPhaseData = associations.filter((a) => a.cyclePhase === 'period');
+          if (periodPhaseData.length > 1) {
+            const periodDurations: number[] = [];
+            const starts = state.extractPeriodStartDates();
+            for (const start of starts) {
+              const periodRecords = periodPhaseData.filter(
+                (p) => p.date >= start && p.date <= dateStr(addDays(new Date(start), stats.avgPeriodLength + 2))
+              );
+              if (periodRecords.length > 0) {
+                periodDurations.push(periodRecords.length);
+              }
+            }
+            if (periodDurations.length > 1) {
+              const avgPL = periodDurations.reduce((a, b) => a + b, 0) / periodDurations.length;
+              periodLengthVariation = Math.sqrt(
+                periodDurations.reduce((a, b) => a + Math.pow(b - avgPL, 2), 0) / periodDurations.length
+              );
+            }
+          }
+        }
+
+        const poorSleepDays = associations.filter((a) => a.sleepQuality <= 2 || a.sleepDuration < 6).length;
+        const periodPoorSleepDays = associations.filter(
+          (a) => a.cyclePhase === 'period' && (a.sleepQuality <= 2 || a.sleepDuration < 6)
+        ).length;
+
+        let severity: 'low' | 'moderate' | 'high' = 'low';
+        let impactDescription = '';
+
+        if (sleepRecords.length < 7) {
+          impactDescription = '记录更多睡眠数据以获取准确的周期影响分析';
+        } else if (stats.cycleCount < 2) {
+          impactDescription = '需要更多经期记录以分析睡眠对周期的影响';
+        } else if (periodPhase && follicularPhase && periodPhase.avgQuality < follicularPhase.avgQuality - 0.8) {
+          severity = 'high';
+          impactDescription = '经期睡眠质量明显下降，可能加重经期不适和周期不规律';
+        } else if (lutealPhase && follicularPhase && lutealPhase.avgQuality < follicularPhase.avgQuality - 0.5) {
+          severity = 'moderate';
+          impactDescription = '黄体期睡眠质量有所下降，注意经前期睡眠调理';
+        } else if (poorSleepDays > sleepRecords.length * 0.3) {
+          severity = 'moderate';
+          impactDescription = '整体睡眠质量欠佳，可能影响内分泌平衡和周期规律性';
+        } else {
+          severity = 'low';
+          impactDescription = '睡眠状况良好，对周期没有明显负面影响';
+        }
+
+        let painCorrelation = 0;
+        if (painRecords.length > 3 && periodPhase) {
+          const periodPainRecords = painRecords.filter((p) => {
+            const { phase } = state.getCyclePhaseForDate(p.date);
+            return phase === 'period';
+          });
+          if (periodPainRecords.length > 2 && periodPhase.avgQuality < 3.5) {
+            painCorrelation = Math.min(100, (5 - periodPhase.avgQuality) * 20 + periodPhase.avgInterruptions * 5);
+          }
+        }
+
+        const keyInsights: SleepImpactAnalysis['keyInsights'] = [];
+
+        if (periodPhase && periodPhase.sampleCount > 0) {
+          if (periodPhase.avgDuration < 6.5) {
+            keyInsights.push({
+              type: 'warning',
+              title: '经期睡眠时长不足',
+              description: `月经期平均睡眠仅 ${periodPhase.avgDuration} 小时，建议保证7-8小时睡眠以帮助身体恢复`,
+              icon: '⚠️',
+            });
+          }
+          if (periodPhase.avgQuality < 3) {
+            keyInsights.push({
+              type: 'warning',
+              title: '经期睡眠质量偏低',
+              description: `月经期睡眠质量评分仅 ${periodPhase.avgQuality}/5，${periodPhase.nightSweatRate > 30 ? '夜间盗汗发生率' + periodPhase.nightSweatRate.toFixed(0) + '%' + '，' : ''}建议睡前减少刺激，保持舒适环境`,
+              icon: '😴',
+            });
+          }
+          if (periodPhase.avgInterruptions > 2) {
+            keyInsights.push({
+              type: 'warning',
+              title: '经期易中断睡眠',
+              description: `月经期夜间平均中断 ${periodPhase.avgInterruptions} 次，可能与痛经、频繁如厕有关`,
+              icon: '🔔',
+            });
+          }
+          if (periodPhase.avgQuality >= 4 && periodPhase.avgDuration >= 7) {
+            keyInsights.push({
+              type: 'good',
+              title: '经期睡眠习惯良好',
+              description: '月经期保持了良好的睡眠质量和时长，有助于缓解经期不适',
+              icon: '✨',
+            });
+          }
+        }
+
+        if (lutealPhase && follicularPhase && lutealPhase.sampleCount > 0 && follicularPhase.sampleCount > 0) {
+          if (lutealPhase.avgQuality < follicularPhase.avgQuality - 0.5) {
+            keyInsights.push({
+              type: 'info',
+              title: '黄体期睡眠波动',
+              description: `黄体期睡眠质量比卵泡期低 ${(follicularPhase.avgQuality - lutealPhase.avgQuality).toFixed(1)} 分，与黄体酮波动有关`,
+              icon: '📊',
+            });
+          }
+          if (lutealPhase.nightSweatRate > follicularPhase.nightSweatRate + 20) {
+            keyInsights.push({
+              type: 'info',
+              title: '经前期夜间盗汗增加',
+              description: `黄体期夜间盗汗发生率比卵泡期高 ${(lutealPhase.nightSweatRate - follicularPhase.nightSweatRate).toFixed(0)}%`,
+              icon: '💧',
+            });
+          }
+        }
+
+        if (stats.regularityScore < 60 && overallScore < 60) {
+          keyInsights.push({
+            type: 'warning',
+            title: '睡眠与周期相关性',
+            description: '睡眠规律性评分较低，同时周期规律性也偏低，改善睡眠可能有助于周期恢复',
+            icon: '🔗',
+          });
+        }
+
+        if (keyInsights.length === 0) {
+          keyInsights.push({
+            type: 'info',
+            title: '数据收集中',
+            description: '继续记录睡眠和周期数据，将获得更多个性化洞察',
+            icon: '📈',
+          });
+        }
+
+        const correlationData = associations.map((a) => ({
+          date: a.date,
+          duration: a.sleepDuration,
+          quality: a.sleepQuality,
+          periodDay: a.cyclePhase === 'period' ? a.cycleDay : null,
+          isPeriod: a.cyclePhase === 'period',
+        }));
+
+        const last30Days = new Date();
+        last30Days.setDate(last30Days.getDate() - 30);
+        const recentAssociations = associations.filter(
+          (a) => new Date(a.date) >= last30Days
+        );
+
+        const weekMap = new Map<string, { durations: number[]; qualities: number[]; interruptions: number[]; periodStart?: string }>();
+        for (const a of recentAssociations) {
+          const d = new Date(a.date);
+          const weekStart = new Date(d);
+          weekStart.setDate(d.getDate() - d.getDay());
+          const weekKey = dateStr(weekStart);
+          const entry = weekMap.get(weekKey) || { durations: [], qualities: [], interruptions: [] };
+          entry.durations.push(a.sleepDuration);
+          entry.qualities.push(a.sleepQuality);
+          entry.interruptions.push(a.interruptions);
+
+          const starts = state.extractPeriodStartDates();
+          const periodInWeek = starts.find((s) => {
+            const sd = new Date(s);
+            return sd >= weekStart && sd < addDays(weekStart, 7);
+          });
+          if (periodInWeek) {
+            entry.periodStart = periodInWeek;
+          }
+
+          weekMap.set(weekKey, entry);
+        }
+
+        const weeklyTrend = Array.from(weekMap.entries())
+          .map(([date, { durations, qualities, interruptions, periodStart }]) => ({
+            date,
+            avgDuration: Number((durations.reduce((a, b) => a + b, 0) / durations.length).toFixed(1)),
+            avgQuality: Number((qualities.reduce((a, b) => a + b, 0) / qualities.length).toFixed(1)),
+            avgInterruptions: Number((interruptions.reduce((a, b) => a + b, 0) / interruptions.length).toFixed(1)),
+            periodStart,
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+
+        return {
+          overallScore,
+          periodImpact: {
+            cycleLengthVariation: Number(cycleLengthVariation.toFixed(1)),
+            periodLengthVariation: Number(periodLengthVariation.toFixed(1)),
+            painLevelCorrelation: Number(painCorrelation.toFixed(0)),
+            severity,
+            description: impactDescription,
+          },
+          phasePatterns: phaseStats,
+          keyInsights,
+          recommendations: [],
+          correlationData,
+          weeklyTrend,
+        };
+      },
+
+      getSleepRecommendations: (analysis: SleepImpactAnalysis): SleepRecommendation[] => {
+        const state = get();
+        const { periodImpact, phasePatterns, overallScore } = analysis;
+        const recommendations: SleepRecommendation[] = [];
+
+        const periodPhase = phasePatterns.find((p) => p.phase === 'period');
+        const lutealPhase = phasePatterns.find((p) => p.phase === 'luteal');
+        const follicularPhase = phasePatterns.find((p) => p.phase === 'follicular');
+
+        if (periodPhase && periodPhase.avgDuration < 7) {
+          recommendations.push({
+            id: generateId(),
+            priority: 'high',
+            category: 'schedule',
+            categoryName: '作息调整',
+            title: '经期提前入睡',
+            description: '经期身体疲劳感更强，需要更多睡眠时间帮助恢复',
+            actionableSteps: [
+              '经期每晚提前30分钟上床准备',
+              '睡前1小时停止使用电子设备',
+              '建立固定的睡前放松仪式（如泡脚、冥想）',
+              '保证每天7-8小时睡眠时长',
+            ],
+            expectedBenefit: '改善经期疲劳感，减少头晕乏力',
+            relatedPhase: 'period',
+            timeToEffect: '1-3天',
+          });
+        }
+
+        if (periodPhase && periodPhase.avgQuality < 3.5) {
+          recommendations.push({
+            id: generateId(),
+            priority: 'high',
+            category: 'environment',
+            categoryName: '环境优化',
+            title: '营造经期舒适睡眠环境',
+            description: '经期身体对环境更敏感，适宜的环境有助于提升睡眠质量',
+            actionableSteps: [
+              '保持卧室温度在18-22℃，避免过热',
+              '使用透气舒适的床品和经期专用用品',
+              '睡前准备好温水、止痛药等以备夜间需要',
+              '使用遮光窗帘，保持卧室黑暗',
+            ],
+            expectedBenefit: '减少夜间醒来次数，提升深睡比例',
+            relatedPhase: 'period',
+            timeToEffect: '立即',
+          });
+        }
+
+        if (lutealPhase && follicularPhase && lutealPhase.avgQuality < follicularPhase.avgQuality - 0.5) {
+          recommendations.push({
+            id: generateId(),
+            priority: 'medium',
+            category: 'lifestyle',
+            categoryName: '生活方式',
+            title: '黄体期睡眠调理',
+            description: '黄体期孕激素波动会影响睡眠质量，需要额外关注',
+            actionableSteps: [
+              '经前1周减少咖啡因摄入，下午2点后不喝咖啡',
+              '睡前避免进食过饱，减少辛辣油腻食物',
+              '适当进行轻度拉伸或瑜伽，帮助放松',
+              '睡前可听舒缓音乐或白噪音',
+            ],
+            expectedBenefit: '缓解经前期睡眠问题，改善情绪波动',
+            relatedPhase: 'luteal',
+            timeToEffect: '1-2个周期',
+          });
+        }
+
+        if (overallScore < 60) {
+          recommendations.push({
+            id: generateId(),
+            priority: 'high',
+            category: 'schedule',
+            categoryName: '作息调整',
+            title: '建立规律作息',
+            description: '不规律的作息会影响内分泌，进而影响月经周期',
+            actionableSteps: [
+              '每天固定时间上床和起床，包括周末',
+              '入睡时间控制在22:00-23:00之间',
+              '起床后开窗通风，接受自然光照射',
+              '白天适当运动，帮助建立睡眠节律',
+            ],
+            expectedBenefit: '改善内分泌节律，提高周期规律性',
+            timeToEffect: '2-4周',
+          });
+        }
+
+        const avgInterruptions = phasePatterns.reduce((sum, p) => sum + p.avgInterruptions, 0) / Math.max(1, phasePatterns.filter(p => p.sampleCount > 0).length);
+        if (avgInterruptions > 1.5) {
+          recommendations.push({
+            id: generateId(),
+            priority: 'medium',
+            category: 'lifestyle',
+            categoryName: '生活方式',
+            title: '减少夜间中断',
+            description: '频繁的夜间中断会严重影响睡眠质量和激素分泌',
+            actionableSteps: [
+              '睡前2小时减少饮水量，避免夜间频繁如厕',
+              '经期睡前排空膀胱，准备好夜间用品',
+              '如果有痛经，睡前可预防性服用止痛药',
+              '保持卧室安静，必要时使用耳塞',
+            ],
+            expectedBenefit: '增加深睡时间，提升白天精力',
+            timeToEffect: '3-7天',
+          });
+        }
+
+        const avgNightSweatRate = phasePatterns.reduce((sum, p) => sum + p.nightSweatRate, 0) / Math.max(1, phasePatterns.filter(p => p.sampleCount > 0).length);
+        if (avgNightSweatRate > 30) {
+          recommendations.push({
+            id: generateId(),
+            priority: 'medium',
+            category: 'environment',
+            categoryName: '环境优化',
+            title: '应对夜间盗汗',
+            description: '夜间盗汗与激素波动有关，适当的环境调整可减轻影响',
+            actionableSteps: [
+              '使用透气吸汗的纯棉睡衣和床品',
+              '卧室保持通风，温度略低（18-20℃）',
+              '床边准备毛巾和替换衣物',
+              '睡前避免饮酒和辛辣食物',
+            ],
+            expectedBenefit: '减少盗汗对睡眠的干扰，提升舒适度',
+            timeToEffect: '立即',
+          });
+        }
+
+        if (periodImpact.severity === 'high') {
+          recommendations.push({
+            id: generateId(),
+            priority: 'high',
+            category: 'medical',
+            categoryName: '医疗建议',
+            title: '关注睡眠对周期的影响',
+            description: '睡眠问题已明显影响到您的月经周期，建议积极改善',
+            actionableSteps: [
+              '持续记录睡眠和周期数据，观察变化规律',
+              '如果改善睡眠2个月后周期仍不规律，建议咨询妇科医生',
+              '可考虑进行激素水平检查',
+              '必要时寻求睡眠专科医生的帮助',
+            ],
+            expectedBenefit: '明确原因，针对性改善周期健康',
+            timeToEffect: '持续关注',
+          });
+        }
+
+        if (overallScore >= 70 && periodImpact.severity === 'low') {
+          recommendations.push({
+            id: generateId(),
+            priority: 'low',
+            category: 'lifestyle',
+            categoryName: '生活方式',
+            title: '保持良好的睡眠习惯',
+            description: '您的睡眠状况良好，继续保持将对周期健康产生积极影响',
+            actionableSteps: [
+              '继续保持规律的作息时间',
+              '经期特别注意休息和保暖',
+              '每周保持3-4次适度运动',
+              '均衡饮食，避免过度疲劳',
+            ],
+            expectedBenefit: '维持良好的周期健康状态',
+            timeToEffect: '持续',
+          });
+        }
+
+        const validPhases = phasePatterns.filter(p => p.sampleCount >= 2).length;
+        if (validPhases < 2) {
+          recommendations.push({
+            id: generateId(),
+            priority: 'low',
+            category: 'schedule',
+            categoryName: '数据记录',
+            title: '继续记录获取更准确建议',
+            description: '需要更多周期的睡眠数据来生成更个性化的建议',
+            actionableSteps: [
+              '每天记录睡眠情况，包括周末',
+              '完整记录至少2-3个周期',
+              '备注影响睡眠的特殊情况',
+              '同时记录经期症状和疼痛程度',
+            ],
+            expectedBenefit: '获得更精准的个性化分析和建议',
+            timeToEffect: '2-3个周期',
+          });
+        }
+
+        return recommendations.sort((a, b) => {
+          const priorityOrder = { high: 0, medium: 1, low: 2 };
+          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        });
       },
     }),
     {

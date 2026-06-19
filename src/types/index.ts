@@ -136,6 +136,76 @@ export interface SleepRecord {
   notes?: string;
 }
 
+export type CyclePhase = 'period' | 'follicular' | 'ovulation' | 'luteal' | 'unknown';
+
+export interface SleepCycleAssociation {
+  date: string;
+  cyclePhase: CyclePhase;
+  cycleDay: number;
+  sleepDuration: number;
+  sleepQuality: number;
+  interruptions: number;
+  nightSweats: boolean;
+}
+
+export interface PhaseSleepStatistics {
+  phase: CyclePhase;
+  phaseName: string;
+  sampleCount: number;
+  avgDuration: number;
+  avgQuality: number;
+  avgInterruptions: number;
+  nightSweatRate: number;
+  durationStdDev?: number;
+  qualityStdDev?: number;
+}
+
+export interface SleepImpactAnalysis {
+  overallScore: number;
+  periodImpact: {
+    cycleLengthVariation: number;
+    periodLengthVariation: number;
+    painLevelCorrelation: number;
+    severity: 'low' | 'moderate' | 'high';
+    description: string;
+  };
+  phasePatterns: PhaseSleepStatistics[];
+  keyInsights: {
+    type: 'warning' | 'info' | 'good';
+    title: string;
+    description: string;
+    icon: string;
+  }[];
+  recommendations: SleepRecommendation[];
+  correlationData: {
+    date: string;
+    duration: number;
+    quality: number;
+    periodDay: number | null;
+    isPeriod: boolean;
+  }[];
+  weeklyTrend: {
+    date: string;
+    avgDuration: number;
+    avgQuality: number;
+    avgInterruptions: number;
+    periodStart?: string;
+  }[];
+}
+
+export interface SleepRecommendation {
+  id: string;
+  priority: 'high' | 'medium' | 'low';
+  category: 'schedule' | 'environment' | 'lifestyle' | 'medical';
+  categoryName: string;
+  title: string;
+  description: string;
+  actionableSteps: string[];
+  expectedBenefit: string;
+  relatedPhase?: CyclePhase;
+  timeToEffect: string;
+}
+
 export interface HormoneRecord {
   id: string;
   date: string;
@@ -386,4 +456,9 @@ export interface AppState {
   getCycleStatistics: () => CycleStatistics;
   getPeriodPrediction: () => PredictionResult;
   getCalendarDayInfo: (year: number, month: number, day: number) => CalendarDayInfo;
+  getCyclePhaseForDate: (date: string) => { phase: CyclePhase; cycleDay: number; periodStartDate: string | null };
+  getSleepCycleAssociation: () => SleepCycleAssociation[];
+  getPhaseSleepStatistics: () => PhaseSleepStatistics[];
+  getSleepImpactAnalysis: () => SleepImpactAnalysis;
+  getSleepRecommendations: (analysis: SleepImpactAnalysis) => SleepRecommendation[];
 }
