@@ -24,6 +24,7 @@ import type {
   MedicationReminder,
   MedicationRecord,
   MedicationCategory,
+  PainRecord,
 } from '@/types';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -299,6 +300,23 @@ const mockMedicationRecords: MedicationRecord[] = [
   },
 ];
 
+const mockPainRecords: PainRecord[] = [
+  {
+    id: generateId(),
+    date: new Date().toISOString().split('T')[0],
+    time: '07:30',
+    level: 6,
+    symptoms: '下腹部绞痛、腰酸',
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    time: '10:00',
+    level: 4,
+    symptoms: '轻微腹胀',
+  },
+];
+
 const mockOvertimeRecords: OvertimeRecord[] = [
   {
     id: generateId(),
@@ -457,6 +475,7 @@ export const useAppStore = create<AppState>()(
       postpartumCheckups: defaultPostpartumCheckups,
       medicationReminders: mockMedicationReminders,
       medicationRecords: mockMedicationRecords,
+      painRecords: mockPainRecords,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
@@ -648,18 +667,36 @@ export const useAppStore = create<AppState>()(
           medicationRecords: [...state.medicationRecords, record],
         })),
 
+      addPainRecord: (record: PainRecord) =>
+        set((state) => ({
+          painRecords: [...state.painRecords, record],
+        })),
+
+      getTodayPainLevel: () => {
+        const { painRecords } = get();
+        const today = new Date().toISOString().split('T')[0];
+        const todays = painRecords.filter((r) => r.date === today);
+        if (todays.length === 0) return 0;
+        todays.sort((a, b) => b.time.localeCompare(a.time));
+        return todays[0].level;
+      },
+
       getMedicationRemindersByCategory: (category: MedicationCategory) => {
         const { medicationReminders } = get();
         return medicationReminders.filter((r) => r.category === category);
       },
 
       getTodayMedicationSchedule: () => {
-        const { medicationReminders, medicationRecords } = get();
+        const { medicationReminders, medicationRecords, getTodayPainLevel } = get();
         const today = new Date().toISOString().split('T')[0];
+        const todayPain = getTodayPainLevel();
         const activeReminders = medicationReminders.filter((r) => {
           if (!r.active) return false;
           if (r.startDate > today) return false;
           if (r.endDate && r.endDate < today) return false;
+          if (r.category === 'dysmenorrhea' && r.linkedPainLevel && todayPain < r.linkedPainLevel) {
+            return false;
+          }
           return true;
         });
 
@@ -676,24 +713,17 @@ export const useAppStore = create<AppState>()(
       },
 
       getMedicationAdherence: () => {
-        const { medicationReminders, medicationRecords } = get();
+        const { getTodayMedicationSchedule } = get();
         const today = new Date().toISOString().split('T')[0];
-        const activeReminders = medicationReminders.filter((r) => {
-          if (!r.active) return false;
-          if (r.startDate > today) return false;
-          if (r.endDate && r.endDate < today) return false;
-          return true;
-        });
-
-        let total = 0;
-        for (const reminder of activeReminders) {
-          total += reminder.times.length;
-        }
-        const todayTaken = medicationRecords.filter(
-          (r) => r.date === today && r.taken
-        ).length;
-        const rate = total > 0 ? Math.round((todayTaken / total) * 100) : 0;
-        return { total, taken: todayTaken, rate };
+        const { medicationRecords } = get();
+        const schedule = getTodayMedicationSchedule();
+        const total = schedule.length;
+        const takenSet = new Set(
+          schedule.filter((s) => s.record?.taken).map((s) => `${s.reminder.id}-${s.time}`)
+        );
+        const taken = takenSet.size;
+        const rate = total > 0 ? Math.round((taken / total) * 100) : 0;
+        return { total, taken, rate };
       },
 
       addHotFlashRecord: (record: HotFlashRecord) =>
@@ -1114,6 +1144,7 @@ export const useAppStore = create<AppState>()(
         postpartumCheckups: state.postpartumCheckups,
         medicationReminders: state.medicationReminders,
         medicationRecords: state.medicationRecords,
+        painRecords: state.painRecords,
       }),
     }
   )

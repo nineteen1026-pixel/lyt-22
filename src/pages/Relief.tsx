@@ -14,10 +14,19 @@ import {
   Sparkles,
   Pill,
   ArrowRight,
+  Plus,
+  X,
+  AlertOctagon,
+  History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/useAppStore';
 import { useNavigate } from 'react-router-dom';
+import type { PainRecord } from '@/types';
+
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
+const symptomOptions = ['下腹部绞痛', '腰酸', '头痛', '恶心', '乳房胀痛', '乏力', '腹泻', '情绪低落'];
 
 interface ReliefMethod {
   id: string;
@@ -138,12 +147,50 @@ const dietaryAdvice = [
 export default function ReliefPage() {
   const [selectedMethod, setSelectedMethod] = useState<ReliefMethod | null>(null);
   const [activeCategory, setActiveCategory] = useState('全部');
+  const today = new Date().toISOString().split('T')[0];
 
   const navigate = useNavigate();
-  const { medicationReminders, medicationRecords, getTodayMedicationSchedule } = useAppStore();
+  const {
+    medicationReminders,
+    medicationRecords,
+    getTodayMedicationSchedule,
+    painRecords,
+    addPainRecord,
+    getTodayPainLevel,
+  } = useAppStore();
+
+  const [showPainModal, setShowPainModal] = useState(false);
+  const [newPain, setNewPain] = useState<Partial<PainRecord>>({
+    date: today,
+    time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+    level: 5,
+    symptoms: '',
+    notes: '',
+  });
+
+  const todayPainLevel = getTodayPainLevel();
+  const todayPainRecords = painRecords.filter((r) => r.date === today).sort((a, b) => b.time.localeCompare(a.time));
+
+  const handleSavePain = () => {
+    addPainRecord({
+      id: generateId(),
+      date: newPain.date || today,
+      time: newPain.time || `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+      level: newPain.level || 0,
+      symptoms: newPain.symptoms || undefined,
+      notes: newPain.notes || undefined,
+    });
+    setShowPainModal(false);
+    setNewPain({
+      date: today,
+      time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
+      level: 5,
+      symptoms: '',
+      notes: '',
+    });
+  };
 
   const dysmenorrheaReminders = medicationReminders.filter((r) => r.category === 'dysmenorrhea' && r.active);
-  const today = new Date().toISOString().split('T')[0];
   const dysmenorrheaSchedule = getTodayMedicationSchedule().filter((s) => s.reminder.category === 'dysmenorrhea');
   const pendingPills = dysmenorrheaSchedule.filter((s) => !s.record?.taken && !s.record?.skipped);
   const takenPills = dysmenorrheaSchedule.filter((s) => s.record?.taken);
@@ -188,6 +235,90 @@ export default function ReliefPage() {
               科学验证
             </span>
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="card p-5 bg-gradient-to-br from-rose-50 to-red-50 md:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
+                <AlertOctagon className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">今日疼痛等级</h3>
+                <p className="text-xs text-gray-500">记录痛经疼痛，自动调整用药提醒</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPainModal(true)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-full text-xs font-medium shadow-md hover:shadow-lg transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              记录疼痛
+            </button>
+          </div>
+          <div className="flex items-end gap-6">
+            <div>
+              <p className="text-5xl font-display font-bold text-rose-500">
+                {todayPainLevel > 0 ? todayPainLevel : '-'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {todayPainLevel === 0
+                  ? '暂无记录'
+                  : todayPainLevel <= 3
+                  ? '轻度疼痛'
+                  : todayPainLevel <= 6
+                  ? '中度疼痛'
+                  : todayPainLevel <= 8
+                  ? '重度疼痛'
+                  : '剧烈疼痛'}
+              </p>
+            </div>
+            <div className="flex-1 h-3 rounded-full bg-white overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-rose-300 via-red-400 to-red-600 transition-all"
+                style={{ width: `${todayPainLevel * 10}%` }}
+              />
+            </div>
+          </div>
+          {todayPainRecords.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-rose-100/60">
+              <div className="flex items-center gap-2 mb-2">
+                <History className="w-4 h-4 text-gray-400" />
+                <p className="text-xs text-gray-500">今日疼痛记录</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {todayPainRecords.slice(0, 6).map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-xs"
+                    title={r.symptoms || r.notes}
+                  >
+                    <span className="font-bold text-rose-500">{r.level}</span>
+                    <span className="text-gray-400">{r.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="card p-5 bg-gradient-to-br from-lavender-50 to-violet-50">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-violet-500" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-800 text-sm">用药联动</h3>
+              <p className="text-xs text-gray-500">根据疼痛等级提醒</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-600 leading-relaxed">
+            {dysmenorrheaReminders.length === 0
+              ? '暂无痛经用药设置，可在用药中心添加并关联疼痛等级。'
+              : `已设置 ${dysmenorrheaReminders.length} 项痛经用药，疼痛达到阈值时自动提醒。`}
+          </p>
         </div>
       </div>
 
@@ -340,6 +471,117 @@ export default function ReliefPage() {
           </div>
         </div>
       </div>
+
+      {showPainModal && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="card p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <AlertOctagon className="w-5 h-5 text-rose-500" />
+                记录痛经疼痛
+              </h2>
+              <button
+                onClick={() => setShowPainModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">疼痛等级</label>
+                  <span className="text-2xl font-bold text-rose-500">{newPain.level}</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={newPain.level || 1}
+                  onChange={(e) => setNewPain({ ...newPain, level: Number(e.target.value) })}
+                  className="w-full accent-rose-500"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>1 无痛</span>
+                  <span>5 中度</span>
+                  <span>10 剧烈</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">日期</label>
+                  <input
+                    type="date"
+                    value={newPain.date || today}
+                    onChange={(e) => setNewPain({ ...newPain, date: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">时间</label>
+                  <input
+                    type="time"
+                    value={newPain.time || ''}
+                    onChange={(e) => setNewPain({ ...newPain, time: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">伴随症状</label>
+                <div className="flex flex-wrap gap-2">
+                  {symptomOptions.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        const current = newPain.symptoms ? newPain.symptoms.split('、') : [];
+                        const idx = current.indexOf(s);
+                        const next = idx >= 0 ? current.filter((x) => x !== s) : [...current, s];
+                        setNewPain({ ...newPain, symptoms: next.length > 0 ? next.join('、') : undefined });
+                      }}
+                      className={cn(
+                        'px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+                        newPain.symptoms?.includes(s)
+                          ? 'bg-rose-100 text-rose-600 ring-1 ring-rose-300'
+                          : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">备注 (可选)</label>
+                <textarea
+                  value={newPain.notes || ''}
+                  onChange={(e) => setNewPain({ ...newPain, notes: e.target.value })}
+                  placeholder="如: 熬夜后加重、受凉后开始痛等"
+                  rows={2}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none transition-all resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setShowPainModal(false)} className="flex-1 btn-secondary">
+                  取消
+                </button>
+                <button
+                  onClick={handleSavePain}
+                  disabled={!newPain.level || newPain.level < 1}
+                  className="flex-1 bg-gradient-to-r from-rose-400 to-pink-500 text-white px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedMethod && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">

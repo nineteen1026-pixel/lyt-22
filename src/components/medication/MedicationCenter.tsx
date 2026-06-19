@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Pill,
   Plus,
@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   Link2,
+  AlarmClock,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
@@ -77,6 +78,7 @@ export default function MedicationCenter() {
     deleteMedicationReminder,
     addMedicationRecord,
     getMedicationAdherence,
+    getTodayMedicationSchedule,
     prenatalCheckups,
   } = useAppStore();
 
@@ -98,6 +100,34 @@ export default function MedicationCenter() {
   });
 
   const adherence = getMedicationAdherence();
+
+  const [popupReminder, setPopupReminder] = useState<{ reminder: MedicationReminder; time: string } | null>(null);
+  const notifiedKeysRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const checkDueReminders = () => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const currentTime = `${hh}:${mm}`;
+      const today = now.toISOString().split('T')[0];
+      const schedule = getTodayMedicationSchedule();
+
+      for (const item of schedule) {
+        if (item.time !== currentTime) continue;
+        if (item.record?.taken || item.record?.skipped) continue;
+        const key = `${today}-${item.reminder.id}-${item.time}`;
+        if (notifiedKeysRef.current.has(key)) continue;
+        notifiedKeysRef.current.add(key);
+        setPopupReminder({ reminder: item.reminder, time: item.time });
+        break;
+      }
+    };
+
+    checkDueReminders();
+    const timer = setInterval(checkDueReminders, 30 * 1000);
+    return () => clearInterval(timer);
+  }, [medicationReminders, medicationRecords]);
 
   const filteredReminders = activeCategory === 'all'
     ? medicationReminders
@@ -182,6 +212,8 @@ export default function MedicationCenter() {
         time,
         taken: true,
         skipped: false,
+        sideEffects: recordSideEffects || undefined,
+        notes: recordNotes || undefined,
       });
     }
     setShowRecordModal(null);
@@ -731,6 +763,53 @@ export default function MedicationCenter() {
                 >
                   保存
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {popupReminder && (
+        <div className="fixed top-6 right-6 z-[60] animate-bounce">
+          <div className="card p-5 w-80 shadow-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                <AlarmClock className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-gray-800">服药提醒</h4>
+                  <button
+                    onClick={() => setPopupReminder(null)}
+                    className="w-6 h-6 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="text-lg font-bold text-gray-900 mt-1">{popupReminder.reminder.name}</p>
+                <p className="text-sm text-gray-500">
+                  {popupReminder.reminder.dosage} · {popupReminder.time}
+                </p>
+                {popupReminder.reminder.notes && (
+                  <p className="text-xs text-gray-400 mt-1">{popupReminder.reminder.notes}</p>
+                )}
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={() => {
+                      setShowRecordModal({ reminderId: popupReminder.reminder.id, time: popupReminder.time });
+                      setPopupReminder(null);
+                    }}
+                    className="flex-1 bg-gradient-to-r from-emerald-400 to-teal-500 text-white py-2 rounded-full text-sm font-medium shadow-md hover:shadow-lg transition-all"
+                  >
+                    立即服药
+                  </button>
+                  <button
+                    onClick={() => setPopupReminder(null)}
+                    className="flex-1 py-2 rounded-full text-sm font-medium bg-white text-gray-500 hover:bg-gray-50 border border-gray-100 transition-all"
+                  >
+                    稍后
+                  </button>
+                </div>
               </div>
             </div>
           </div>

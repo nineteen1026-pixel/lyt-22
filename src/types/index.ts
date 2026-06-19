@@ -234,6 +234,15 @@ export interface MedicationRecord {
   notes?: string;
 }
 
+export interface PainRecord {
+  id: string;
+  date: string;
+  time: string;
+  level: number;
+  symptoms?: string;
+  notes?: string;
+}
+
 export type LifeStage = 'teen' | 'career' | 'pregnancy-prep' | 'pregnancy' | 'postpartum' | 'menopause';
 
 export interface AppState {
@@ -254,6 +263,7 @@ export interface AppState {
   postpartumCheckups: PostpartumCheckup[];
   medicationReminders: MedicationReminder[];
   medicationRecords: MedicationRecord[];
+  painRecords: PainRecord[];
   setLifeStage: (stage: LifeStage) => void;
   addPeriodRecord: (record: PeriodRecord) => void;
   addOvertimeRecord: (record: OvertimeRecord) => void;
@@ -276,6 +286,8 @@ export interface AppState {
   updateMedicationReminder: (id: string, data: Partial<MedicationReminder>) => void;
   deleteMedicationReminder: (id: string) => void;
   addMedicationRecord: (record: MedicationRecord) => void;
+  addPainRecord: (record: PainRecord) => void;
+  getTodayPainLevel: () => number;
   getMedicationRemindersByCategory: (category: MedicationCategory) => MedicationReminder[];
   getTodayMedicationSchedule: () => { reminder: MedicationReminder; time: string; record?: MedicationRecord }[];
   getMedicationAdherence: () => { total: number; taken: number; rate: number };

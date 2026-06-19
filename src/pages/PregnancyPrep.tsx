@@ -10,10 +10,13 @@ import {
   Star,
   Clock,
   Sparkles,
+  Pill,
+  ArrowRight,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
 import type { OvulationRecord } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
 const prepTips = [
   {
@@ -33,7 +36,13 @@ const prepTips = [
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export default function PregnancyPrepPage() {
-  const { ovulationRecords, addOvulationRecord, getOvulationDate, cycleData } = useAppStore();
+  const { ovulationRecords, addOvulationRecord, getOvulationDate, cycleData, medicationReminders, getTodayMedicationSchedule } = useAppStore();
+  const navigate = useNavigate();
+
+  const ovulationReminders = medicationReminders.filter((r) => r.category === 'ovulation' && r.active);
+  const ovulationSchedule = getTodayMedicationSchedule().filter((s) => s.reminder.category === 'ovulation');
+  const pendingOvPills = ovulationSchedule.filter((s) => !s.record?.taken && !s.record?.skipped);
+  const takenOvPills = ovulationSchedule.filter((s) => s.record?.taken);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRecord, setNewRecord] = useState<Partial<OvulationRecord>>({
     date: new Date().toISOString().split('T')[0],
@@ -136,6 +145,57 @@ export default function PregnancyPrepPage() {
           </div>
           <p className="text-xs text-gray-400">正常范围 21-35 天</p>
         </div>
+      </div>
+
+      <div className="card p-6 mb-8 bg-gradient-to-br from-amber-50 to-orange-50">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+              <Pill className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-800">促排药管理</h3>
+              <p className="text-xs text-gray-500">今日 {takenOvPills.length}/{ovulationSchedule.length} 已服</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/medication')}
+            className="text-sm text-amber-600 font-medium flex items-center gap-1 hover:gap-2 transition-all"
+          >
+            用药中心 <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
+        {ovulationReminders.length > 0 ? (
+          <>
+            {pendingOvPills.length > 0 ? (
+              <div className="space-y-2 mb-4">
+                {pendingOvPills.slice(0, 4).map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-white/70 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-500" />
+                      <span className="text-sm font-medium text-gray-800">{item.reminder.name}</span>
+                      <span className="text-xs text-gray-400">{item.reminder.dosage}</span>
+                      {item.reminder.notes && (
+                        <span className="text-xs text-gray-300 hidden sm:inline">· {item.reminder.notes}</span>
+                      )}
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-600">{item.time} 待服</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-2 mb-2">今日促排药物已全部服用 🎉</p>
+            )}
+            <div className="pt-3 border-t border-amber-100/60">
+              <p className="text-xs text-gray-500 flex items-center gap-2">
+                <Sparkles className="w-3 h-3 text-amber-500" />
+                管理中: {ovulationReminders.map((r) => r.name).join('、')}
+              </p>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-2">暂无促排药提醒，可在用药中心添加</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
