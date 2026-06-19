@@ -336,10 +336,6 @@ export interface AppState {
   medicationReminders: MedicationReminder[];
   medicationRecords: MedicationRecord[];
   painRecords: PainRecord[];
-  foodItems: FoodItem[];
-  recipes: Recipe[];
-  foodIntakeRecords: FoodIntakeRecord[];
-  nutrientRDAs: NutrientRDAByStage[];
   setLifeStage: (stage: LifeStage) => void;
   addPeriodRecord: (record: PeriodRecord) => void;
   addOvertimeRecord: (record: OvertimeRecord) => void;
@@ -381,10 +377,4 @@ export interface AppState {
   getCycleStatistics: () => CycleStatistics;
   getPeriodPrediction: () => PredictionResult;
   getCalendarDayInfo: (year: number, month: number, day: number) => CalendarDayInfo;
-  addFoodIntakeRecord: (record: FoodIntakeRecord) => void;
-  deleteFoodIntakeRecord: (id: string) => void;
-  getRecipesByLifeStage: (stage: LifeStage) => Recipe[];
-  getDailyNutritionSummary: (date: string) => DailyNutritionSummary;
-  getNutrientGapAnalysis: (date: string) => NutrientGapItem[];
-  getWeeklyNutritionTrend: () => { date: string; calories: number; protein: number }[];
 }

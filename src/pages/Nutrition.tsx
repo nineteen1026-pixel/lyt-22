@@ -11,11 +11,12 @@ import {
   Wheat,
   Droplets,
 } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
+import { useNutritionStore } from '@/store/useNutritionStore';
 import { cn } from '@/lib/utils';
 import RecipeRecommendation from '@/components/nutrition/RecipeRecommendation';
 import IntakeTracker from '@/components/nutrition/IntakeTracker';
 import NutrientGapAnalysis from '@/components/nutrition/NutrientGapAnalysis';
+import LifeStageSelector from '@/components/nutrition/LifeStageSelector';
 
 type TabKey = 'overview' | 'recipes' | 'intake' | 'analysis';
 
@@ -37,13 +38,13 @@ const lifeStageLabels: Record<string, string> = {
 
 export default function Nutrition() {
   const {
-    lifeStage,
+    selectedLifeStage,
     getDailyNutritionSummary,
     getWeeklyNutritionTrend,
     getNutrientGapAnalysis,
     getRecipesByLifeStage,
     foodIntakeRecords,
-  } = useAppStore();
+  } = useNutritionStore();
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
@@ -51,7 +52,7 @@ export default function Nutrition() {
   const todaySummary = getDailyNutritionSummary(today);
   const weeklyTrend = getWeeklyNutritionTrend();
   const gapAnalysis = getNutrientGapAnalysis(today);
-  const stageRecipes = getRecipesByLifeStage(lifeStage);
+  const stageRecipes = getRecipesByLifeStage(selectedLifeStage);
   const todayRecords = foodIntakeRecords.filter((r) => r.date === today);
 
   const lowNutrients = gapAnalysis.filter((n) => n.percentage < 80).slice(0, 3);
@@ -277,16 +278,19 @@ export default function Nutrition() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-emerald-200/50">
-            <UtensilsCrossed className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-emerald-200/50">
+              <UtensilsCrossed className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-display text-3xl font-bold text-gray-800">营养膳食</h1>
+              <p className="text-gray-500">
+                当前阶段：{lifeStageLabels[selectedLifeStage]} · 科学饮食，健康生活
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display text-3xl font-bold text-gray-800">营养膳食</h1>
-            <p className="text-gray-500">
-              当前阶段：{lifeStageLabels[lifeStage]} · 科学饮食，健康生活
-            </p>
-          </div>
+          <LifeStageSelector />
         </div>
       </div>
 

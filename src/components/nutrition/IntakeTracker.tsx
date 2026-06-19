@@ -11,7 +11,7 @@ import {
   Sunset,
   Cookie,
 } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
+import { useNutritionStore } from '@/store/useNutritionStore';
 import { cn } from '@/lib/utils';
 import type { FoodItem } from '@/types';
 
@@ -29,7 +29,7 @@ export default function IntakeTracker() {
     addFoodIntakeRecord,
     deleteFoodIntakeRecord,
     getDailyNutritionSummary,
-  } = useAppStore();
+  } = useNutritionStore();
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -87,7 +87,6 @@ export default function IntakeTracker() {
     if (selectedFoods.length === 0) return;
 
     const record = {
-      id: Math.random().toString(36).substr(2, 9),
       date: selectedDate,
       time: new Date().toTimeString().slice(0, 5),
       mealType: selectedMealType,

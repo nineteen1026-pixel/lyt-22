@@ -10,7 +10,7 @@ import {
   ChevronUp,
   ArrowRight,
 } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
+import { useNutritionStore } from '@/store/useNutritionStore';
 import { cn } from '@/lib/utils';
 
 const lifeStageLabels: Record<string, string> = {
@@ -45,7 +45,7 @@ const nutrientTips: Record<string, string> = {
 };
 
 export default function NutrientGapAnalysis() {
-  const { lifeStage, getNutrientGapAnalysis, getWeeklyNutritionTrend } = useAppStore();
+  const { selectedLifeStage, getNutrientGapAnalysis, getWeeklyNutritionTrend } = useNutritionStore();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expandedNutrient, setExpandedNutrient] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -115,7 +115,7 @@ export default function NutrientGapAnalysis() {
 
       <div className="bg-violet-50 rounded-xl p-4 border border-violet-100">
         <p className="text-sm text-violet-700">
-          💡 当前阶段：<strong>{lifeStageLabels[lifeStage]}</strong>，
+          💡 当前阶段：<strong>{lifeStageLabels[selectedLifeStage]}</strong>，
           {lowNutrients.length > 0
             ? `有 ${lowNutrients.length} 种营养素需要重点补充`
             : '今日营养素摄入均衡，继续保持！'}

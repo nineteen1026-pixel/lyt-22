@@ -8,7 +8,7 @@ import {
   ArrowRight,
   Check,
 } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
+import { useNutritionStore } from '@/store/useNutritionStore';
 import { cn } from '@/lib/utils';
 import type { Recipe } from '@/types';
 
@@ -35,12 +35,12 @@ const lifeStageLabels: Record<string, string> = {
 };
 
 export default function RecipeRecommendation() {
-  const { lifeStage, getRecipesByLifeStage, addFoodIntakeRecord, foodItems } = useAppStore();
+  const { selectedLifeStage, getRecipesByLifeStage, addFoodIntakeRecord, foodItems } = useNutritionStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showAddSuccess, setShowAddSuccess] = useState(false);
 
-  const recipes = getRecipesByLifeStage(lifeStage);
+  const recipes = getRecipesByLifeStage(selectedLifeStage);
   const filteredRecipes = selectedCategory === 'all'
     ? recipes
     : recipes.filter((r) => r.category === selectedCategory);
@@ -50,7 +50,6 @@ export default function RecipeRecommendation() {
   const handleAddToRecord = (recipe: Recipe) => {
     const mealType = recipe.category === 'snack' ? 'snack' : recipe.category;
     const record = {
-      id: Math.random().toString(36).substr(2, 9),
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().slice(0, 5),
       mealType: mealType as 'breakfast' | 'lunch' | 'dinner' | 'snack',
@@ -93,7 +92,7 @@ export default function RecipeRecommendation() {
 
       <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
         <p className="text-sm text-emerald-700">
-          💡 当前阶段：<strong>{lifeStageLabels[lifeStage]}</strong>，为您推荐 {recipes.length} 道适合的食谱
+          💡 当前阶段：<strong>{lifeStageLabels[selectedLifeStage]}</strong>，为您推荐 {recipes.length} 道适合的食谱
         </p>
       </div>
 
