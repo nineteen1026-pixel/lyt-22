@@ -455,6 +455,13 @@ export interface MaskedMedicationSummary {
   adherenceRate: number;
 }
 
+export interface MaskedPainSummary {
+  todayLevel: number;
+  hasPainToday: boolean;
+  recentAveLevel: number;
+  painDays7d: number;
+}
+
 export interface MaskedPregnancySummary {
   currentWeek: number;
   dueDate: string;
@@ -482,6 +489,7 @@ export interface MaskedHealthData {
   sleep?: MaskedSleepSummary;
   mood?: MaskedMoodSummary;
   medication?: MaskedMedicationSummary;
+  pain?: MaskedPainSummary;
   pregnancy?: MaskedPregnancySummary;
   postpartum?: MaskedPostpartumSummary;
   nutrition?: MaskedNutritionSummary;

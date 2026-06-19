@@ -13,6 +13,7 @@ import {
   Droplets,
   Moon,
   Users,
+  Eye,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -116,6 +117,16 @@ const stages = [
     color: 'from-rose-400 via-pink-400 to-lavender-400',
     bgColor: 'bg-rose-50',
     path: '/family',
+  },
+  {
+    id: 'family-viewer',
+    title: '家人查看',
+    subtitle: '共享码·身份选择·关怀视角',
+    description: '以家人身份查看被授权的脱敏健康数据',
+    icon: Eye,
+    color: 'from-sky-400 via-blue-400 to-indigo-500',
+    bgColor: 'bg-sky-50',
+    path: '/family-viewer',
   },
 ];
 

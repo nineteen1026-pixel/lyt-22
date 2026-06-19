@@ -1912,6 +1912,24 @@ export const useAppStore = create<AppState>()(
           };
         }
 
+        if (permissions.pain && !permissions.cycle) {
+          const today = new Date().toISOString().split('T')[0];
+          const todayPain = state.painRecords.find((p) => p.date === today);
+          const todayLevel = todayPain ? todayPain.level : 0;
+          const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+          const recentPains = state.painRecords.filter((p) => p.date >= weekAgo);
+          const painDays7d = new Set(recentPains.map((p) => p.date)).size;
+          const recentAve = recentPains.length > 0
+            ? Math.round(recentPains.reduce((s, p) => s + p.level, 0) / recentPains.length * 10) / 10
+            : 0;
+          result.pain = {
+            todayLevel,
+            hasPainToday: todayLevel > 0,
+            recentAveLevel: recentAve,
+            painDays7d,
+          };
+        }
+
         if (permissions.pregnancy) {
           const week = state.getCurrentWeek();
           const dueDate = state.getDueDate();
@@ -1930,26 +1948,35 @@ export const useAppStore = create<AppState>()(
 
         if (permissions.postpartum) {
           const days = state.getDaysPostpartum();
-          let phase = '未知';
-          if (days <= 7) phase = '产褥期';
-          else if (days <= 42) phase = '产褥期恢复';
-          else if (days <= 90) phase = '产后恢复期';
-          else if (days <= 180) phase = '产后调理期';
-          else phase = '已过恢复期';
+          const hasPostpartumData =
+            state.postpartumData.deliveryDate ||
+            state.lochiaRecords.length > 0 ||
+            state.breastfeedingRecords.length > 0 ||
+            state.pelvicFloorRecords.length > 0 ||
+            state.postpartumCheckups.length > 0;
 
-          const breastfeedingStats = state.getBreastfeedingStats();
-          const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
-          const recentExercises = state.pelvicFloorRecords.filter((r) => r.date >= weekAgo).length;
-          const today = new Date().toISOString().split('T')[0];
-          const upcomingCheckups = state.postpartumCheckups.filter((c) => !c.completed && c.date >= today).length;
+          if (hasPostpartumData) {
+            let phase = '未知';
+            if (days <= 7) phase = '产褥期';
+            else if (days <= 42) phase = '产褥期恢复';
+            else if (days <= 90) phase = '产后恢复期';
+            else if (days <= 180) phase = '产后调理期';
+            else phase = '已过恢复期';
 
-          result.postpartum = {
-            daysPostpartum: days,
-            recoveryPhase: phase,
-            breastfeedingTodayCount: breastfeedingStats.todayCount,
-            pelvicFloorExercisesThisWeek: recentExercises,
-            upcomingCheckupCount: upcomingCheckups,
-          };
+            const breastfeedingStats = state.getBreastfeedingStats();
+            const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+            const recentExercises = state.pelvicFloorRecords.filter((r) => r.date >= weekAgo).length;
+            const today = new Date().toISOString().split('T')[0];
+            const upcomingCheckups = state.postpartumCheckups.filter((c) => !c.completed && c.date >= today).length;
+
+            result.postpartum = {
+              daysPostpartum: days,
+              recoveryPhase: phase,
+              breastfeedingTodayCount: breastfeedingStats.todayCount,
+              pelvicFloorExercisesThisWeek: recentExercises,
+              upcomingCheckupCount: upcomingCheckups,
+            };
+          }
         }
 
         if (permissions.nutrition) {
