@@ -12,8 +12,12 @@ import {
   Clock,
   ChevronRight,
   Sparkles,
+  Pill,
+  ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store/useAppStore';
+import { useNavigate } from 'react-router-dom';
 
 interface ReliefMethod {
   id: string;
@@ -134,6 +138,15 @@ const dietaryAdvice = [
 export default function ReliefPage() {
   const [selectedMethod, setSelectedMethod] = useState<ReliefMethod | null>(null);
   const [activeCategory, setActiveCategory] = useState('全部');
+
+  const navigate = useNavigate();
+  const { medicationReminders, medicationRecords, getTodayMedicationSchedule } = useAppStore();
+
+  const dysmenorrheaReminders = medicationReminders.filter((r) => r.category === 'dysmenorrhea' && r.active);
+  const today = new Date().toISOString().split('T')[0];
+  const dysmenorrheaSchedule = getTodayMedicationSchedule().filter((s) => s.reminder.category === 'dysmenorrhea');
+  const pendingPills = dysmenorrheaSchedule.filter((s) => !s.record?.taken && !s.record?.skipped);
+  const takenPills = dysmenorrheaSchedule.filter((s) => s.record?.taken);
 
   const categories = ['全部', '物理缓解', '食疗调理', '运动缓解', '心理调节', '生活调理'];
 
@@ -273,6 +286,44 @@ export default function ReliefPage() {
           </div>
         ))}
       </div>
+
+      {dysmenorrheaReminders.length > 0 && (
+        <div className="card p-6 mt-8 bg-gradient-to-br from-rose-50 to-pink-50">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
+                <Pill className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">痛经用药提醒</h3>
+                <p className="text-xs text-gray-500">今日 {takenPills.length}/{dysmenorrheaSchedule.length} 已服</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/medication')}
+              className="text-sm text-rose-500 font-medium flex items-center gap-1 hover:gap-2 transition-all"
+            >
+              用药中心 <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+          {pendingPills.length > 0 ? (
+            <div className="space-y-2">
+              {pendingPills.slice(0, 3).map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-white/70 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm font-medium text-gray-800">{item.reminder.name}</span>
+                    <span className="text-xs text-gray-400">{item.reminder.dosage}</span>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-600">{item.time} 待服</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-2">暂无待服药物 🎉</p>
+          )}
+        </div>
+      )}
 
       <div className="card p-6 mt-8 bg-gradient-to-br from-lavender-50 to-purple-50">
         <div className="flex items-start gap-4">

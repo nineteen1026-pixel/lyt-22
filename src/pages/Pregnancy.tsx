@@ -13,10 +13,13 @@ import {
   Clock,
   ChevronRight,
   Settings,
+  Pill,
+  ArrowRight,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
 import type { PrenatalCheckup } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
 const pregnancyKnowledge = [
   {
@@ -86,7 +89,16 @@ export default function PregnancyPage() {
     setPregnancyData,
     getCurrentWeek,
     getDueDate,
+    medicationReminders,
+    getTodayMedicationSchedule,
   } = useAppStore();
+
+  const navigate = useNavigate();
+
+  const pregnancyMedReminders = medicationReminders.filter((r) => r.category === 'pregnancy' && r.active);
+  const pregnancySchedule = getTodayMedicationSchedule().filter((s) => s.reminder.category === 'pregnancy');
+  const pregnancyPending = pregnancySchedule.filter((s) => !s.record?.taken && !s.record?.skipped);
+  const pregnancyTaken = pregnancySchedule.filter((s) => s.record?.taken);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -272,6 +284,44 @@ export default function PregnancyPage() {
           </div>
         </div>
       </div>
+
+      {pregnancyMedReminders.length > 0 && (
+        <div className="card p-6 mb-8 bg-gradient-to-br from-sky-50 to-blue-50">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center">
+                <Pill className="w-5 h-5 text-sky-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">孕期用药提醒</h3>
+                <p className="text-xs text-gray-500">今日 {pregnancyTaken.length}/{pregnancySchedule.length} 已服</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/medication')}
+              className="text-sm text-sky-500 font-medium flex items-center gap-1 hover:gap-2 transition-all"
+            >
+              用药中心 <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+          {pregnancyPending.length > 0 ? (
+            <div className="space-y-2">
+              {pregnancyPending.slice(0, 3).map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-white/70 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm font-medium text-gray-800">{item.reminder.name}</span>
+                    <span className="text-xs text-gray-400">{item.reminder.dosage}</span>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-600">{item.time} 待服</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-2">今日孕期药物已全部服用 🎉</p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">

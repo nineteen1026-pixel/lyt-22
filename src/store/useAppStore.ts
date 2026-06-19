@@ -21,6 +21,9 @@ import type {
   CycleStatistics,
   PredictionResult,
   CalendarDayInfo,
+  MedicationReminder,
+  MedicationRecord,
+  MedicationCategory,
 } from '@/types';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -200,6 +203,102 @@ const defaultPostpartumCheckups: PostpartumCheckup[] = [
   },
 ];
 
+const mockMedicationReminders: MedicationReminder[] = [
+  {
+    id: generateId(),
+    category: 'dysmenorrhea',
+    name: '布洛芬缓释胶囊',
+    dosage: '300mg',
+    frequency: '每日2次',
+    times: ['08:00', '20:00'],
+    startDate: new Date().toISOString().split('T')[0],
+    notes: '饭后服用，经期疼痛时使用',
+    active: true,
+    linkedPainLevel: 6,
+  },
+  {
+    id: generateId(),
+    category: 'dysmenorrhea',
+    name: '元胡止痛片',
+    dosage: '4片',
+    frequency: '每日3次',
+    times: ['08:00', '14:00', '20:00'],
+    startDate: new Date().toISOString().split('T')[0],
+    active: true,
+    linkedPainLevel: 4,
+  },
+  {
+    id: generateId(),
+    category: 'pregnancy',
+    name: '叶酸片',
+    dosage: '0.4mg',
+    frequency: '每日1次',
+    times: ['09:00'],
+    startDate: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
+    notes: '孕早期必备，预防神经管缺陷',
+    active: true,
+  },
+  {
+    id: generateId(),
+    category: 'pregnancy',
+    name: '钙尔奇D',
+    dosage: '600mg',
+    frequency: '每日1次',
+    times: ['21:00'],
+    startDate: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+    notes: '睡前服用吸收更好',
+    active: true,
+  },
+  {
+    id: generateId(),
+    category: 'ovulation',
+    name: '来曲唑',
+    dosage: '2.5mg',
+    frequency: '每日1次',
+    times: ['08:00'],
+    startDate: new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0],
+    notes: '月经第3-7天服用，促排卵治疗',
+    active: true,
+  },
+];
+
+const mockMedicationRecords: MedicationRecord[] = [
+  {
+    id: generateId(),
+    reminderId: mockMedicationReminders[2].id,
+    date: new Date().toISOString().split('T')[0],
+    time: '09:00',
+    taken: true,
+    skipped: false,
+  },
+  {
+    id: generateId(),
+    reminderId: mockMedicationReminders[0].id,
+    date: new Date().toISOString().split('T')[0],
+    time: '08:00',
+    taken: true,
+    skipped: false,
+  },
+  {
+    id: generateId(),
+    reminderId: mockMedicationReminders[3].id,
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    time: '21:00',
+    taken: true,
+    skipped: false,
+  },
+  {
+    id: generateId(),
+    reminderId: mockMedicationReminders[1].id,
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    time: '08:00',
+    taken: false,
+    skipped: true,
+    notes: '忘记服用',
+  },
+];
+
 const mockOvertimeRecords: OvertimeRecord[] = [
   {
     id: generateId(),
@@ -356,6 +455,8 @@ export const useAppStore = create<AppState>()(
       lochiaRecords: mockLochiaRecords,
       breastfeedingRecords: mockBreastfeedingRecords,
       postpartumCheckups: defaultPostpartumCheckups,
+      medicationReminders: mockMedicationReminders,
+      medicationRecords: mockMedicationRecords,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
@@ -523,6 +624,77 @@ export const useAppStore = create<AppState>()(
             c.id === id ? { ...c, completed: !c.completed } : c
           ),
         })),
+
+      addMedicationReminder: (reminder: MedicationReminder) =>
+        set((state) => ({
+          medicationReminders: [...state.medicationReminders, reminder],
+        })),
+
+      updateMedicationReminder: (id: string, data: Partial<MedicationReminder>) =>
+        set((state) => ({
+          medicationReminders: state.medicationReminders.map((r) =>
+            r.id === id ? { ...r, ...data } : r
+          ),
+        })),
+
+      deleteMedicationReminder: (id: string) =>
+        set((state) => ({
+          medicationReminders: state.medicationReminders.filter((r) => r.id !== id),
+          medicationRecords: state.medicationRecords.filter((r) => r.reminderId !== id),
+        })),
+
+      addMedicationRecord: (record: MedicationRecord) =>
+        set((state) => ({
+          medicationRecords: [...state.medicationRecords, record],
+        })),
+
+      getMedicationRemindersByCategory: (category: MedicationCategory) => {
+        const { medicationReminders } = get();
+        return medicationReminders.filter((r) => r.category === category);
+      },
+
+      getTodayMedicationSchedule: () => {
+        const { medicationReminders, medicationRecords } = get();
+        const today = new Date().toISOString().split('T')[0];
+        const activeReminders = medicationReminders.filter((r) => {
+          if (!r.active) return false;
+          if (r.startDate > today) return false;
+          if (r.endDate && r.endDate < today) return false;
+          return true;
+        });
+
+        const schedule: { reminder: MedicationReminder; time: string; record?: MedicationRecord }[] = [];
+        for (const reminder of activeReminders) {
+          for (const time of reminder.times) {
+            const record = medicationRecords.find(
+              (r) => r.reminderId === reminder.id && r.date === today && r.time === time
+            );
+            schedule.push({ reminder, time, record });
+          }
+        }
+        return schedule.sort((a, b) => a.time.localeCompare(b.time));
+      },
+
+      getMedicationAdherence: () => {
+        const { medicationReminders, medicationRecords } = get();
+        const today = new Date().toISOString().split('T')[0];
+        const activeReminders = medicationReminders.filter((r) => {
+          if (!r.active) return false;
+          if (r.startDate > today) return false;
+          if (r.endDate && r.endDate < today) return false;
+          return true;
+        });
+
+        let total = 0;
+        for (const reminder of activeReminders) {
+          total += reminder.times.length;
+        }
+        const todayTaken = medicationRecords.filter(
+          (r) => r.date === today && r.taken
+        ).length;
+        const rate = total > 0 ? Math.round((todayTaken / total) * 100) : 0;
+        return { total, taken: todayTaken, rate };
+      },
 
       addHotFlashRecord: (record: HotFlashRecord) =>
         set((state) => ({
@@ -940,6 +1112,8 @@ export const useAppStore = create<AppState>()(
         lochiaRecords: state.lochiaRecords,
         breastfeedingRecords: state.breastfeedingRecords,
         postpartumCheckups: state.postpartumCheckups,
+        medicationReminders: state.medicationReminders,
+        medicationRecords: state.medicationRecords,
       }),
     }
   )

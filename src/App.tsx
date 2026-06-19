@@ -9,6 +9,7 @@ import Postpartum from "@/pages/Postpartum";
 import Relief from "@/pages/Relief";
 import Mood from "@/pages/Mood";
 import MenopauseCare from "@/pages/Menopause";
+import Medication from "@/pages/Medication";
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/pregnancy" element={<Pregnancy />} />
           <Route path="/postpartum" element={<Postpartum />} />
           <Route path="/relief" element={<Relief />} />
+          <Route path="/medication" element={<Medication />} />
           <Route path="/mood" element={<Mood />} />
           <Route path="/menopause" element={<MenopauseCare />} />
         </Routes>

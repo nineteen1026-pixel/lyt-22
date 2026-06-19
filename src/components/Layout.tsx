@@ -1,5 +1,5 @@
 import { NavLink, Link } from 'react-router-dom';
-import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Leaf, Smile, Palette, Flower2 } from 'lucide-react';
+import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Leaf, Smile, Palette, Flower2, Pill } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/pregnancy', label: '孕期', icon: Stethoscope },
   { to: '/postpartum', label: '产后恢复', icon: Leaf },
   { to: '/relief', label: '痛经舒缓', icon: Smile },
+  { to: '/medication', label: '用药提醒', icon: Pill },
   { to: '/mood', label: '情绪治愈', icon: Palette },
   { to: '/menopause', label: '更年期照护', icon: Flower2 },
 ];

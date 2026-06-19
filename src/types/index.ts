@@ -206,6 +206,34 @@ export interface PostpartumData {
   deliveryType: 'vaginal' | 'cesarean' | 'unknown';
 }
 
+export type MedicationCategory = 'dysmenorrhea' | 'pregnancy' | 'ovulation';
+
+export interface MedicationReminder {
+  id: string;
+  category: MedicationCategory;
+  name: string;
+  dosage: string;
+  frequency: string;
+  times: string[];
+  startDate: string;
+  endDate?: string;
+  notes?: string;
+  active: boolean;
+  linkedPainLevel?: number;
+  linkedCheckupId?: string;
+}
+
+export interface MedicationRecord {
+  id: string;
+  reminderId: string;
+  date: string;
+  time: string;
+  taken: boolean;
+  skipped: boolean;
+  sideEffects?: string;
+  notes?: string;
+}
+
 export type LifeStage = 'teen' | 'career' | 'pregnancy-prep' | 'pregnancy' | 'postpartum' | 'menopause';
 
 export interface AppState {
@@ -224,6 +252,8 @@ export interface AppState {
   lochiaRecords: LochiaRecord[];
   breastfeedingRecords: BreastfeedingRecord[];
   postpartumCheckups: PostpartumCheckup[];
+  medicationReminders: MedicationReminder[];
+  medicationRecords: MedicationRecord[];
   setLifeStage: (stage: LifeStage) => void;
   addPeriodRecord: (record: PeriodRecord) => void;
   addOvertimeRecord: (record: OvertimeRecord) => void;
@@ -242,6 +272,13 @@ export interface AppState {
   addBreastfeedingRecord: (record: BreastfeedingRecord) => void;
   addPostpartumCheckup: (checkup: PostpartumCheckup) => void;
   togglePostpartumCheckupComplete: (id: string) => void;
+  addMedicationReminder: (reminder: MedicationReminder) => void;
+  updateMedicationReminder: (id: string, data: Partial<MedicationReminder>) => void;
+  deleteMedicationReminder: (id: string) => void;
+  addMedicationRecord: (record: MedicationRecord) => void;
+  getMedicationRemindersByCategory: (category: MedicationCategory) => MedicationReminder[];
+  getTodayMedicationSchedule: () => { reminder: MedicationReminder; time: string; record?: MedicationRecord }[];
+  getMedicationAdherence: () => { total: number; taken: number; rate: number };
   getCurrentWeek: () => number;
   getNextPeriodDate: () => string;
   getOvulationDate: () => string;
