@@ -245,6 +245,78 @@ export interface PainRecord {
 
 export type LifeStage = 'teen' | 'career' | 'pregnancy-prep' | 'pregnancy' | 'postpartum' | 'menopause';
 
+export interface Nutrient {
+  id: string;
+  name: string;
+  unit: string;
+  rda: number;
+  category: 'vitamin' | 'mineral' | 'macronutrient';
+}
+
+export interface FoodItem {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  nutrients: { nutrientId: string; amount: number }[];
+  servingSize: string;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  lifeStages: LifeStage[];
+  category: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  cookTime: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  ingredients: { name: string; amount: string }[];
+  instructions: string[];
+  nutrients: { nutrientId: string; amount: number }[];
+  tags: string[];
+}
+
+export interface FoodIntakeRecord {
+  id: string;
+  date: string;
+  time: string;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  foodItems: { foodItemId: string; servings: number }[];
+  notes?: string;
+}
+
+export interface NutrientRDAByStage {
+  lifeStage: LifeStage;
+  nutrients: { nutrientId: string; rda: number }[];
+}
+
+export interface NutrientGapItem {
+  nutrientId: string;
+  nutrientName: string;
+  unit: string;
+  rda: number;
+  current: number;
+  gap: number;
+  percentage: number;
+  category: 'vitamin' | 'mineral' | 'macronutrient';
+}
+
+export interface DailyNutritionSummary {
+  date: string;
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  nutrients: { nutrientId: string; amount: number }[];
+}
+
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
@@ -264,6 +336,10 @@ export interface AppState {
   medicationReminders: MedicationReminder[];
   medicationRecords: MedicationRecord[];
   painRecords: PainRecord[];
+  foodItems: FoodItem[];
+  recipes: Recipe[];
+  foodIntakeRecords: FoodIntakeRecord[];
+  nutrientRDAs: NutrientRDAByStage[];
   setLifeStage: (stage: LifeStage) => void;
   addPeriodRecord: (record: PeriodRecord) => void;
   addOvertimeRecord: (record: OvertimeRecord) => void;
@@ -305,4 +381,10 @@ export interface AppState {
   getCycleStatistics: () => CycleStatistics;
   getPeriodPrediction: () => PredictionResult;
   getCalendarDayInfo: (year: number, month: number, day: number) => CalendarDayInfo;
+  addFoodIntakeRecord: (record: FoodIntakeRecord) => void;
+  deleteFoodIntakeRecord: (id: string) => void;
+  getRecipesByLifeStage: (stage: LifeStage) => Recipe[];
+  getDailyNutritionSummary: (date: string) => DailyNutritionSummary;
+  getNutrientGapAnalysis: (date: string) => NutrientGapItem[];
+  getWeeklyNutritionTrend: () => { date: string; calories: number; protein: number }[];
 }

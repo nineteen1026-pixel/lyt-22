@@ -10,6 +10,7 @@ import Relief from "@/pages/Relief";
 import Mood from "@/pages/Mood";
 import MenopauseCare from "@/pages/Menopause";
 import Medication from "@/pages/Medication";
+import Nutrition from "@/pages/Nutrition";
 import { MedicationReminderProvider } from "@/components/medication/MedicationReminderContext";
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/medication" element={<Medication />} />
             <Route path="/mood" element={<Mood />} />
             <Route path="/menopause" element={<MenopauseCare />} />
+            <Route path="/nutrition" element={<Nutrition />} />
           </Routes>
         </Layout>
       </MedicationReminderProvider>
