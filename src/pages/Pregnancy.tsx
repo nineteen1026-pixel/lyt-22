@@ -12,6 +12,7 @@ import {
   X,
   Clock,
   ChevronRight,
+  Settings,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
@@ -45,11 +46,50 @@ const pregnancyKnowledge = [
   },
 ];
 
+const babySizeByWeek: Record<number, { size: string; description: string }> = {
+  4: { size: '约0.2cm', description: '像一颗罂粟籽' },
+  5: { size: '约0.4cm', description: '像一颗芝麻' },
+  6: { size: '约0.6cm', description: '像一颗小扁豆' },
+  7: { size: '约1cm', description: '像一颗蓝莓' },
+  8: { size: '约1.6cm', description: '像一颗芸豆' },
+  9: { size: '约2.3cm', description: '像一颗葡萄' },
+  10: { size: '约3.1cm', description: '像一颗金桔' },
+  11: { size: '约4.1cm', description: '像一颗无花果' },
+  12: { size: '约5.4cm', description: '像一颗酸橙' },
+  13: { size: '约7.4cm', description: '像一个桃子' },
+  14: { size: '约8.7cm', description: '像一个柠檬' },
+  15: { size: '约10.1cm', description: '像一个苹果' },
+  16: { size: '约11.6cm', description: '像一个牛油果' },
+  20: { size: '约25.6cm', description: '像一个香蕉' },
+  24: { size: '约30cm', description: '像一个玉米' },
+  28: { size: '约37cm', description: '像一个茄子' },
+  32: { size: '约42cm', description: '像一个南瓜' },
+  36: { size: '约47cm', description: '像一个哈密瓜' },
+  40: { size: '约50cm', description: '像一个小西瓜' },
+};
+
+const getBabyInfo = (week: number) => {
+  if (week <= 0) return { size: '待确定', description: '请设置孕周' };
+  const knownWeeks = Object.keys(babySizeByWeek).map(Number).sort((a, b) => b - a);
+  const closestWeek = knownWeeks.find(w => week >= w) || 4;
+  return babySizeByWeek[closestWeek] || { size: '成长中', description: '宝宝正在努力发育' };
+};
+
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export default function PregnancyPage() {
-  const { prenatalCheckups, addPrenatalCheckup, toggleCheckupComplete } = useAppStore();
+  const {
+    prenatalCheckups,
+    pregnancyData,
+    addPrenatalCheckup,
+    toggleCheckupComplete,
+    setPregnancyData,
+    getCurrentWeek,
+    getDueDate,
+  } = useAppStore();
+
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [newCheckup, setNewCheckup] = useState<Partial<PrenatalCheckup>>({
     date: new Date().toISOString().split('T')[0],
     week: 12,
@@ -58,6 +98,12 @@ export default function PregnancyPage() {
     notes: '',
     completed: false,
   });
+
+  const [lmpDate, setLmpDate] = useState(pregnancyData.lastMenstrualPeriodDate);
+  const [manualWeek, setManualWeek] = useState<string>(
+    pregnancyData.manualWeek !== null ? String(pregnancyData.manualWeek) : ''
+  );
+  const [useManualWeek, setUseManualWeek] = useState(pregnancyData.manualWeek !== null);
 
   const completedCount = prenatalCheckups.filter((c) => c.completed).length;
   const totalCount = prenatalCheckups.length;
@@ -68,7 +114,9 @@ export default function PregnancyPage() {
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  const currentWeek = 10;
+  const currentWeek = getCurrentWeek();
+  const dueDate = getDueDate();
+  const babyInfo = getBabyInfo(currentWeek);
 
   const handleAddCheckup = () => {
     if (newCheckup.date && newCheckup.type) {
@@ -96,42 +144,92 @@ export default function PregnancyPage() {
     }
   };
 
+  const handleSaveSettings = () => {
+    if (useManualWeek) {
+      setPregnancyData({
+        lastMenstrualPeriodDate: lmpDate,
+        manualWeek: manualWeek ? Number(manualWeek) : null,
+      });
+    } else {
+      setPregnancyData({
+        lastMenstrualPeriodDate: lmpDate,
+        manualWeek: null,
+      });
+    }
+    setShowSettingsModal(false);
+  };
+
+  const getDaysUntilDue = () => {
+    if (!dueDate) return null;
+    const due = new Date(dueDate);
+    const now = new Date();
+    const diff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 0;
+  };
+
+  const daysUntilDue = getDaysUntilDue();
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center shadow-lg shadow-sky-200/50">
-            <Stethoscope className="w-6 h-6 text-white" />
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center shadow-lg shadow-sky-200/50">
+              <Stethoscope className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-display text-3xl font-bold text-gray-800">孕期</h1>
+              <p className="text-gray-500">全程陪伴产检之旅</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display text-3xl font-bold text-gray-800">孕期</h1>
-            <p className="text-gray-500">全程陪伴产检之旅</p>
-          </div>
+          <button
+            onClick={() => {
+              setLmpDate(pregnancyData.lastMenstrualPeriodDate);
+              setManualWeek(pregnancyData.manualWeek !== null ? String(pregnancyData.manualWeek) : '');
+              setUseManualWeek(pregnancyData.manualWeek !== null);
+              setShowSettingsModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="text-sm">孕周设置</span>
+          </button>
         </div>
       </div>
 
-      <div className="card p-6 mb-8 bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-500 text-white">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="card p-6 mb-8 bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-500 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <p className="text-white/80 text-sm mb-1">当前孕周</p>
-            <h2 className="font-display text-4xl font-bold mb-2">第 {currentWeek} 周</h2>
-            <p className="text-white/90">宝宝正在健康成长中 💕</p>
+            <h2 className="font-display text-4xl font-bold mb-2">
+              {currentWeek > 0 ? `第 ${currentWeek} 周` : '请设置孕周'}
+            </h2>
+            <p className="text-white/90">
+              {currentWeek > 0 ? '宝宝正在健康成长中 💕' : '点击右上角设置末次月经或手动填写孕周'}
+            </p>
           </div>
           <div className="flex gap-6">
             <div className="text-center">
               <div className="text-3xl mb-1">👶</div>
               <p className="text-xs text-white/80">宝宝大小</p>
-              <p className="font-bold">约3cm</p>
+              <p className="font-bold">{babyInfo.size}</p>
+              <p className="text-xs text-white/70">{babyInfo.description}</p>
             </div>
             <div className="text-center">
               <div className="text-3xl mb-1">💓</div>
               <p className="text-xs text-white/80">胎心</p>
-              <p className="font-bold">150次/分</p>
+              <p className="font-bold">120-160次/分</p>
             </div>
             <div className="text-center">
               <div className="text-3xl mb-1">📅</div>
               <p className="text-xs text-white/80">预产期</p>
-              <p className="font-bold">280天</p>
+              <p className="font-bold">{dueDate || '待设置'}</p>
+              {daysUntilDue !== null && (
+                <p className="text-xs text-white/70">还有 {daysUntilDue} 天</p>
+              )}
             </div>
           </div>
         </div>
@@ -313,9 +411,11 @@ export default function PregnancyPage() {
               <h3 className="font-bold text-gray-800">宝宝发育</h3>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">
-              现在宝宝已经初具人形，头部约占身体的一半。
-              四肢开始发育，心脏已经形成并开始跳动。
-              各个器官正在快速分化发育中。
+              {currentWeek >= 8
+                ? '现在宝宝已经初具人形，头部约占身体的一半。四肢开始发育，心脏已经形成并开始跳动。各个器官正在快速分化发育中。'
+                : currentWeek >= 4
+                ? '宝宝正在着床，各器官开始形成。这是发育的关键时期，要特别注意营养和休息。'
+                : '请先设置孕周，了解宝宝的发育情况。'}
             </p>
           </div>
         </div>
@@ -400,6 +500,90 @@ export default function PregnancyPage() {
                   className="flex-1 bg-gradient-to-r from-sky-400 to-blue-500 text-white px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all"
                 >
                   保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="card p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-800">孕周设置</h2>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  末次月经日期
+                </label>
+                <input
+                  type="date"
+                  value={lmpDate}
+                  onChange={(e) => setLmpDate(e.target.value)}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  设置后会自动计算当前孕周和预产期
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="useManualWeek"
+                  checked={useManualWeek}
+                  onChange={(e) => setUseManualWeek(e.target.checked)}
+                  className="w-4 h-4 accent-sky-500"
+                />
+                <label htmlFor="useManualWeek" className="text-sm text-gray-700">
+                  手动设置孕周
+                </label>
+              </div>
+
+              {useManualWeek && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    当前孕周 (周)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="42"
+                    value={manualWeek}
+                    onChange={(e) => setManualWeek(e.target.value)}
+                    placeholder="填写当前孕周"
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                  />
+                </div>
+              )}
+
+              <div className="p-4 bg-sky-50 rounded-xl">
+                <p className="text-sm text-gray-600">
+                  <strong>💡 小提示：</strong>孕周是从末次月经第一天开始计算的，整个孕期约280天（40周）。如果记不清末次月经，可以通过B超检查确定孕周。
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowSettingsModal(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSaveSettings}
+                  className="flex-1 bg-gradient-to-r from-sky-400 to-blue-500 text-white px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all"
+                >
+                  保存设置
                 </button>
               </div>
             </div>

@@ -64,11 +64,17 @@ export interface ReliefMethod {
   effectiveness: number;
 }
 
+export interface PregnancyData {
+  lastMenstrualPeriodDate: string;
+  manualWeek: number | null;
+}
+
 export type LifeStage = 'teen' | 'career' | 'pregnancy-prep' | 'pregnancy';
 
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
+  pregnancyData: PregnancyData;
   overtimeRecords: OvertimeRecord[];
   ovulationRecords: OvulationRecord[];
   prenatalCheckups: PrenatalCheckup[];
@@ -81,6 +87,9 @@ export interface AppState {
   toggleCheckupComplete: (id: string) => void;
   addMoodRecord: (record: MoodRecord) => void;
   setCycleData: (data: Partial<CycleData>) => void;
+  setPregnancyData: (data: Partial<PregnancyData>) => void;
+  getCurrentWeek: () => number;
   getNextPeriodDate: () => string;
   getOvulationDate: () => string;
+  getDueDate: () => string;
 }

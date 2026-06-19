@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   AppState,
   PeriodRecord,
@@ -8,6 +9,7 @@ import type {
   MoodRecord,
   LifeStage,
   CycleData,
+  PregnancyData,
 } from '@/types';
 
 const today = new Date();
@@ -30,6 +32,11 @@ const initialCycleData: CycleData = {
       mood: '平静',
     },
   ],
+};
+
+const initialPregnancyData: PregnancyData = {
+  lastMenstrualPeriodDate: '',
+  manualWeek: null,
 };
 
 const mockOvertimeRecords: OvertimeRecord[] = [
@@ -105,67 +112,115 @@ const mockMoodRecords: MoodRecord[] = [
   },
 ];
 
-export const useAppStore = create<AppState>((set, get) => ({
-  lifeStage: 'teen',
-  cycleData: initialCycleData,
-  overtimeRecords: mockOvertimeRecords,
-  ovulationRecords: mockOvulationRecords,
-  prenatalCheckups: mockCheckups,
-  moodRecords: mockMoodRecords,
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      lifeStage: 'teen',
+      cycleData: initialCycleData,
+      pregnancyData: initialPregnancyData,
+      overtimeRecords: mockOvertimeRecords,
+      ovulationRecords: mockOvulationRecords,
+      prenatalCheckups: mockCheckups,
+      moodRecords: mockMoodRecords,
 
-  setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
+      setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
-  addPeriodRecord: (record: PeriodRecord) =>
-    set((state) => ({
-      cycleData: {
-        ...state.cycleData,
-        records: [...state.cycleData.records, record],
+      addPeriodRecord: (record: PeriodRecord) =>
+        set((state) => ({
+          cycleData: {
+            ...state.cycleData,
+            records: [...state.cycleData.records, record],
+          },
+        })),
+
+      addOvertimeRecord: (record: OvertimeRecord) =>
+        set((state) => ({
+          overtimeRecords: [...state.overtimeRecords, record],
+        })),
+
+      addOvulationRecord: (record: OvulationRecord) =>
+        set((state) => ({
+          ovulationRecords: [...state.ovulationRecords, record],
+        })),
+
+      addPrenatalCheckup: (checkup: PrenatalCheckup) =>
+        set((state) => ({
+          prenatalCheckups: [...state.prenatalCheckups, checkup],
+        })),
+
+      toggleCheckupComplete: (id: string) =>
+        set((state) => ({
+          prenatalCheckups: state.prenatalCheckups.map((c) =>
+            c.id === id ? { ...c, completed: !c.completed } : c
+          ),
+        })),
+
+      addMoodRecord: (record: MoodRecord) =>
+        set((state) => ({
+          moodRecords: [...state.moodRecords, record],
+        })),
+
+      setCycleData: (data: Partial<CycleData>) =>
+        set((state) => ({
+          cycleData: { ...state.cycleData, ...data },
+        })),
+
+      setPregnancyData: (data: Partial<PregnancyData>) =>
+        set((state) => ({
+          pregnancyData: { ...state.pregnancyData, ...data },
+        })),
+
+      getCurrentWeek: () => {
+        const state = get();
+        if (state.pregnancyData.manualWeek !== null) {
+          return state.pregnancyData.manualWeek;
+        }
+        if (state.pregnancyData.lastMenstrualPeriodDate) {
+          const lmp = new Date(state.pregnancyData.lastMenstrualPeriodDate);
+          const now = new Date();
+          const diffTime = Math.abs(now.getTime() - lmp.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const week = Math.floor(diffDays / 7);
+          return Math.min(Math.max(week, 0), 42);
+        }
+        return 0;
       },
-    })),
 
-  addOvertimeRecord: (record: OvertimeRecord) =>
-    set((state) => ({
-      overtimeRecords: [...state.overtimeRecords, record],
-    })),
+      getDueDate: () => {
+        const state = get();
+        if (state.pregnancyData.lastMenstrualPeriodDate) {
+          const lmp = new Date(state.pregnancyData.lastMenstrualPeriodDate);
+          lmp.setDate(lmp.getDate() + 280);
+          return lmp.toISOString().split('T')[0];
+        }
+        return '';
+      },
 
-  addOvulationRecord: (record: OvulationRecord) =>
-    set((state) => ({
-      ovulationRecords: [...state.ovulationRecords, record],
-    })),
+      getNextPeriodDate: () => {
+        const state = get();
+        const lastDate = new Date(state.cycleData.lastPeriodDate);
+        lastDate.setDate(lastDate.getDate() + state.cycleData.cycleLength);
+        return lastDate.toISOString().split('T')[0];
+      },
 
-  addPrenatalCheckup: (checkup: PrenatalCheckup) =>
-    set((state) => ({
-      prenatalCheckups: [...state.prenatalCheckups, checkup],
-    })),
-
-  toggleCheckupComplete: (id: string) =>
-    set((state) => ({
-      prenatalCheckups: state.prenatalCheckups.map((c) =>
-        c.id === id ? { ...c, completed: !c.completed } : c
-      ),
-    })),
-
-  addMoodRecord: (record: MoodRecord) =>
-    set((state) => ({
-      moodRecords: [...state.moodRecords, record],
-    })),
-
-  setCycleData: (data: Partial<CycleData>) =>
-    set((state) => ({
-      cycleData: { ...state.cycleData, ...data },
-    })),
-
-  getNextPeriodDate: () => {
-    const state = get();
-    const lastDate = new Date(state.cycleData.lastPeriodDate);
-    lastDate.setDate(lastDate.getDate() + state.cycleData.cycleLength);
-    return lastDate.toISOString().split('T')[0];
-  },
-
-  getOvulationDate: () => {
-    const state = get();
-    const nextPeriod = new Date(state.getNextPeriodDate());
-    nextPeriod.setDate(nextPeriod.getDate() - 14);
-    return nextPeriod.toISOString().split('T')[0];
-  },
-}));
+      getOvulationDate: () => {
+        const state = get();
+        const nextPeriod = new Date(state.getNextPeriodDate());
+        nextPeriod.setDate(nextPeriod.getDate() - 14);
+        return nextPeriod.toISOString().split('T')[0];
+      },
+    }),
+    {
+      name: 'her-cycle-storage',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        cycleData: state.cycleData,
+        pregnancyData: state.pregnancyData,
+        overtimeRecords: state.overtimeRecords,
+        ovulationRecords: state.ovulationRecords,
+        prenatalCheckups: state.prenatalCheckups,
+        moodRecords: state.moodRecords,
+      }),
+    }
+  )
+);
