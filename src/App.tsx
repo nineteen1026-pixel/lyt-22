@@ -7,6 +7,7 @@ import PregnancyPrep from "@/pages/PregnancyPrep";
 import Pregnancy from "@/pages/Pregnancy";
 import Relief from "@/pages/Relief";
 import Mood from "@/pages/Mood";
+import MenopauseCare from "@/pages/Menopause";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/pregnancy" element={<Pregnancy />} />
           <Route path="/relief" element={<Relief />} />
           <Route path="/mood" element={<Mood />} />
+          <Route path="/menopause" element={<MenopauseCare />} />
         </Routes>
       </Layout>
     </Router>

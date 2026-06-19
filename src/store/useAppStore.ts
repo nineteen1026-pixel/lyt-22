@@ -7,6 +7,9 @@ import type {
   OvulationRecord,
   PrenatalCheckup,
   MoodRecord,
+  HotFlashRecord,
+  SleepRecord,
+  HormoneRecord,
   LifeStage,
   CycleData,
   PregnancyData,
@@ -112,6 +115,71 @@ const mockMoodRecords: MoodRecord[] = [
   },
 ];
 
+const mockHotFlashRecords: HotFlashRecord[] = [
+  {
+    id: generateId(),
+    date: new Date().toISOString().split('T')[0],
+    time: '14:30',
+    severity: 'moderate',
+    duration: 5,
+    triggers: ['压力', '热饮'],
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    time: '22:00',
+    severity: 'severe',
+    duration: 15,
+    triggers: ['夜间'],
+    notes: '出汗较多，换了睡衣',
+  },
+];
+
+const mockSleepRecords: SleepRecord[] = [
+  {
+    id: generateId(),
+    date: new Date().toISOString().split('T')[0],
+    bedTime: '23:00',
+    wakeTime: '06:30',
+    duration: 7.5,
+    quality: 3,
+    interruptions: 2,
+    nightSweats: true,
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    bedTime: '23:30',
+    wakeTime: '05:30',
+    duration: 6,
+    quality: 2,
+    interruptions: 3,
+    nightSweats: true,
+    notes: '潮热醒来两次',
+  },
+];
+
+const mockHormoneRecords: HormoneRecord[] = [
+  {
+    id: generateId(),
+    date: new Date().toISOString().split('T')[0],
+    estrogenLevel: 30,
+    progesteroneLevel: 2,
+    fshLevel: 80,
+    lhLevel: 40,
+    phase: 'perimenopausal',
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
+    estrogenLevel: 45,
+    progesteroneLevel: 5,
+    fshLevel: 60,
+    lhLevel: 35,
+    phase: 'perimenopausal',
+  },
+];
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -122,6 +190,9 @@ export const useAppStore = create<AppState>()(
       ovulationRecords: mockOvulationRecords,
       prenatalCheckups: mockCheckups,
       moodRecords: mockMoodRecords,
+      hotFlashRecords: mockHotFlashRecords,
+      sleepRecords: mockSleepRecords,
+      hormoneRecords: mockHormoneRecords,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
@@ -170,6 +241,21 @@ export const useAppStore = create<AppState>()(
           pregnancyData: { ...state.pregnancyData, ...data },
         })),
 
+      addHotFlashRecord: (record: HotFlashRecord) =>
+        set((state) => ({
+          hotFlashRecords: [...state.hotFlashRecords, record],
+        })),
+
+      addSleepRecord: (record: SleepRecord) =>
+        set((state) => ({
+          sleepRecords: [...state.sleepRecords, record],
+        })),
+
+      addHormoneRecord: (record: HormoneRecord) =>
+        set((state) => ({
+          hormoneRecords: [...state.hormoneRecords, record],
+        })),
+
       getCurrentWeek: () => {
         const state = get();
         if (state.pregnancyData.manualWeek !== null) {
@@ -209,6 +295,48 @@ export const useAppStore = create<AppState>()(
         nextPeriod.setDate(nextPeriod.getDate() - 14);
         return nextPeriod.toISOString().split('T')[0];
       },
+
+      getHotFlashTrend: () => {
+        const { hotFlashRecords } = get();
+        const map = new Map<string, { count: number; totalSeverity: number }>();
+        for (const r of hotFlashRecords) {
+          const entry = map.get(r.date) || { count: 0, totalSeverity: 0 };
+          entry.count += 1;
+          entry.totalSeverity += r.severity === 'mild' ? 1 : r.severity === 'moderate' ? 2 : 3;
+          map.set(r.date, entry);
+        }
+        return Array.from(map.entries())
+          .map(([date, { count, totalSeverity }]) => ({ date, count, avgSeverity: Number((totalSeverity / count).toFixed(1)) }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      },
+
+      getSleepTrend: () => {
+        const { sleepRecords } = get();
+        const map = new Map<string, { totalQuality: number; totalDuration: number; count: number }>();
+        for (const r of sleepRecords) {
+          const entry = map.get(r.date) || { totalQuality: 0, totalDuration: 0, count: 0 };
+          entry.totalQuality += r.quality;
+          entry.totalDuration += r.duration;
+          entry.count += 1;
+          map.set(r.date, entry);
+        }
+        return Array.from(map.entries())
+          .map(([date, { totalQuality, totalDuration, count }]) => ({ date, avgQuality: Number((totalQuality / count).toFixed(1)), avgDuration: Number((totalDuration / count).toFixed(1)) }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      },
+
+      getHormoneTrend: () => {
+        const { hormoneRecords } = get();
+        return hormoneRecords
+          .map((r) => ({
+            date: r.date,
+            estrogen: r.estrogenLevel,
+            progesterone: r.progesteroneLevel,
+            fsh: r.fshLevel,
+            lh: r.lhLevel,
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      },
     }),
     {
       name: 'her-cycle-storage',
@@ -220,6 +348,9 @@ export const useAppStore = create<AppState>()(
         ovulationRecords: state.ovulationRecords,
         prenatalCheckups: state.prenatalCheckups,
         moodRecords: state.moodRecords,
+        hotFlashRecords: state.hotFlashRecords,
+        sleepRecords: state.sleepRecords,
+        hormoneRecords: state.hormoneRecords,
       }),
     }
   )

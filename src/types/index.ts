@@ -69,7 +69,40 @@ export interface PregnancyData {
   manualWeek: number | null;
 }
 
-export type LifeStage = 'teen' | 'career' | 'pregnancy-prep' | 'pregnancy';
+export interface HotFlashRecord {
+  id: string;
+  date: string;
+  time: string;
+  severity: 'mild' | 'moderate' | 'severe';
+  duration: number;
+  triggers: string[];
+  notes?: string;
+}
+
+export interface SleepRecord {
+  id: string;
+  date: string;
+  bedTime: string;
+  wakeTime: string;
+  duration: number;
+  quality: 1 | 2 | 3 | 4 | 5;
+  interruptions: number;
+  nightSweats: boolean;
+  notes?: string;
+}
+
+export interface HormoneRecord {
+  id: string;
+  date: string;
+  estrogenLevel?: number;
+  progesteroneLevel?: number;
+  fshLevel?: number;
+  lhLevel?: number;
+  phase: 'follicular' | 'ovulatory' | 'luteal' | 'perimenopausal' | 'postmenopausal';
+  notes?: string;
+}
+
+export type LifeStage = 'teen' | 'career' | 'pregnancy-prep' | 'pregnancy' | 'menopause';
 
 export interface AppState {
   lifeStage: LifeStage;
@@ -79,6 +112,9 @@ export interface AppState {
   ovulationRecords: OvulationRecord[];
   prenatalCheckups: PrenatalCheckup[];
   moodRecords: MoodRecord[];
+  hotFlashRecords: HotFlashRecord[];
+  sleepRecords: SleepRecord[];
+  hormoneRecords: HormoneRecord[];
   setLifeStage: (stage: LifeStage) => void;
   addPeriodRecord: (record: PeriodRecord) => void;
   addOvertimeRecord: (record: OvertimeRecord) => void;
@@ -86,10 +122,16 @@ export interface AppState {
   addPrenatalCheckup: (checkup: PrenatalCheckup) => void;
   toggleCheckupComplete: (id: string) => void;
   addMoodRecord: (record: MoodRecord) => void;
+  addHotFlashRecord: (record: HotFlashRecord) => void;
+  addSleepRecord: (record: SleepRecord) => void;
+  addHormoneRecord: (record: HormoneRecord) => void;
   setCycleData: (data: Partial<CycleData>) => void;
   setPregnancyData: (data: Partial<PregnancyData>) => void;
   getCurrentWeek: () => number;
   getNextPeriodDate: () => string;
   getOvulationDate: () => string;
   getDueDate: () => string;
+  getHotFlashTrend: () => { date: string; count: number; avgSeverity: number }[];
+  getSleepTrend: () => { date: string; avgQuality: number; avgDuration: number }[];
+  getHormoneTrend: () => { date: string; estrogen?: number; progesterone?: number; fsh?: number; lh?: number }[];
 }
