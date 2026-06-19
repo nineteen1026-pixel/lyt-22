@@ -30,6 +30,11 @@ import type {
   PhaseSleepStatistics,
   SleepImpactAnalysis,
   SleepRecommendation,
+  FamilyMember,
+  ShareCode,
+  PermissionConfig,
+  FamilyRelation,
+  MaskedHealthData,
 } from '@/types';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -322,6 +327,40 @@ const mockPainRecords: PainRecord[] = [
   },
 ];
 
+const defaultPermissions: PermissionConfig = {
+  cycle: true,
+  sleep: true,
+  mood: true,
+  medication: true,
+  pregnancy: true,
+  postpartum: true,
+  nutrition: false,
+  pain: true,
+};
+
+const mockFamilyMembers: FamilyMember[] = [
+  {
+    id: generateId(),
+    name: '亲爱的',
+    relation: 'partner',
+    permissions: { ...defaultPermissions, nutrition: true },
+    createdAt: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
+    lastAccessedAt: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0],
+    active: true,
+  },
+];
+
+const mockShareCodes: ShareCode[] = [];
+
+const generateShareCodeString = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
 const mockOvertimeRecords: OvertimeRecord[] = [
   {
     id: generateId(),
@@ -520,6 +559,8 @@ export const useAppStore = create<AppState>()(
       medicationReminders: mockMedicationReminders,
       medicationRecords: mockMedicationRecords,
       painRecords: mockPainRecords,
+      familyMembers: mockFamilyMembers,
+      shareCodes: mockShareCodes,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
@@ -1715,6 +1756,161 @@ export const useAppStore = create<AppState>()(
           return priorityOrder[a.priority] - priorityOrder[b.priority];
         });
       },
+
+      addFamilyMember: (member: Omit<FamilyMember, 'id' | 'createdAt'>) =>
+        set((state) => ({
+          familyMembers: [
+            ...state.familyMembers,
+            {
+              ...member,
+              id: generateId(),
+              createdAt: new Date().toISOString().split('T')[0],
+            },
+          ],
+        })),
+
+      updateFamilyMember: (id: string, data: Partial<FamilyMember>) =>
+        set((state) => ({
+          familyMembers: state.familyMembers.map((m) =>
+            m.id === id ? { ...m, ...data } : m
+          ),
+        })),
+
+      removeFamilyMember: (id: string) =>
+        set((state) => ({
+          familyMembers: state.familyMembers.filter((m) => m.id !== id),
+        })),
+
+      updateMemberPermissions: (id: string, permissions: PermissionConfig) =>
+        set((state) => ({
+          familyMembers: state.familyMembers.map((m) =>
+            m.id === id ? { ...m, permissions } : m
+          ),
+        })),
+
+      generateShareCode: (permissions: PermissionConfig, validHours: number = 24) => {
+        const newCode: ShareCode = {
+          id: generateId(),
+          code: generateShareCodeString(),
+          permissions,
+          expiresAt: new Date(Date.now() + validHours * 3600 * 1000).toISOString(),
+          createdAt: new Date().toISOString(),
+          used: false,
+        };
+        set((state) => ({
+          shareCodes: [...state.shareCodes, newCode],
+        }));
+        return newCode;
+      },
+
+      revokeShareCode: (codeId: string) =>
+        set((state) => ({
+          shareCodes: state.shareCodes.filter((c) => c.id !== codeId),
+        })),
+
+      redeemShareCode: (code: string, memberName: string, relation: FamilyRelation) => {
+        const state = get();
+        const shareCode = state.shareCodes.find(
+          (c) => c.code === code.toUpperCase() && !c.used && new Date(c.expiresAt) > new Date()
+        );
+        if (!shareCode) return null;
+
+        const newMember: FamilyMember = {
+          id: generateId(),
+          name: memberName,
+          relation,
+          permissions: shareCode.permissions,
+          createdAt: new Date().toISOString().split('T')[0],
+          active: true,
+        };
+
+        set((s) => ({
+          familyMembers: [...s.familyMembers, newMember],
+          shareCodes: s.shareCodes.map((c) =>
+            c.id === shareCode.id ? { ...c, used: true, usedBy: newMember.id } : c
+          ),
+        }));
+
+        return newMember;
+      },
+
+      getMaskedHealthData: (permissions: PermissionConfig): MaskedHealthData => {
+        const state = get();
+        const result: MaskedHealthData = {};
+
+        if (permissions.cycle || permissions.pain) {
+          const pred = state.getPeriodPrediction();
+          const todayPain = state.getTodayPainLevel();
+          const phaseNames: Record<string, string> = {
+            period: '月经期',
+            follicular: '卵泡期',
+            ovulation: '排卵期',
+            fertile: '易孕期',
+            luteal: '黄体期',
+            predicted_period: '预期经期',
+          };
+          let painLevel: 'none' | 'mild' | 'moderate' | 'severe' = 'none';
+          if (todayPain > 0 && todayPain <= 3) painLevel = 'mild';
+          else if (todayPain > 3 && todayPain <= 6) painLevel = 'moderate';
+          else if (todayPain > 6) painLevel = 'severe';
+
+          if (permissions.cycle) {
+            result.cycle = {
+              cyclePhase: phaseNames[pred.cyclePhase] || '未知',
+              daysUntilNextPeriod: pred.daysUntilNextPeriod,
+              hasPainToday: todayPain > 0,
+              painLevel: permissions.pain ? painLevel : undefined,
+            };
+          }
+        }
+
+        if (permissions.sleep) {
+          const trend = state.getSleepTrend();
+          const last7 = trend.slice(-7);
+          if (last7.length > 0) {
+            const avgDuration = last7.reduce((s, r) => s + r.avgDuration, 0) / last7.length;
+            const avgQuality = last7.reduce((s, r) => s + r.avgQuality, 0) / last7.length;
+            const poorDays = last7.filter((r) => r.avgQuality <= 2 || r.avgDuration < 6).length;
+            result.sleep = {
+              avgDuration: Number(avgDuration.toFixed(1)),
+              avgQuality: Number(avgQuality.toFixed(1)),
+              poorSleepDays: poorDays,
+            };
+          }
+        }
+
+        if (permissions.mood) {
+          const recent = state.moodRecords.slice(-7);
+          if (recent.length > 0) {
+            const latestMood = recent[recent.length - 1].mood;
+            let trend: 'improving' | 'stable' | 'declining' | 'unknown' = 'unknown';
+            if (recent.length >= 3) {
+              const firstHalf = recent.slice(0, Math.floor(recent.length / 2));
+              const secondHalf = recent.slice(Math.floor(recent.length / 2));
+              const firstIntensity = firstHalf.reduce((s, r) => s + r.intensity, 0) / firstHalf.length;
+              const secondIntensity = secondHalf.reduce((s, r) => s + r.intensity, 0) / secondHalf.length;
+              if (secondIntensity - firstIntensity > 1) trend = 'improving';
+              else if (firstIntensity - secondIntensity > 1) trend = 'declining';
+              else trend = 'stable';
+            }
+            result.mood = {
+              recentMood: latestMood,
+              moodTrend: trend,
+            };
+          }
+        }
+
+        if (permissions.medication) {
+          const adherence = state.getMedicationAdherence();
+          result.medication = {
+            todayTotal: adherence.total,
+            todayTaken: adherence.taken,
+            adherenceRate: adherence.rate,
+          };
+        }
+
+        return result;
+      },
     }),
     {
       name: 'her-cycle-storage',
@@ -1737,6 +1933,8 @@ export const useAppStore = create<AppState>()(
         medicationReminders: state.medicationReminders,
         medicationRecords: state.medicationRecords,
         painRecords: state.painRecords,
+        familyMembers: state.familyMembers,
+        shareCodes: state.shareCodes,
       }),
     }
   )

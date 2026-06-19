@@ -12,6 +12,7 @@ import {
   Calendar,
   Droplets,
   Moon,
+  Users,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -105,6 +106,16 @@ const stages = [
     color: 'from-indigo-400 via-purple-400 to-pink-400',
     bgColor: 'bg-indigo-50',
     path: '/sleep',
+  },
+  {
+    id: 'family',
+    title: '家庭共享',
+    subtitle: '权限配置·共享码·脱敏数据',
+    description: '与家人分享脱敏后的健康数据，让爱与关怀更贴心',
+    icon: Users,
+    color: 'from-rose-400 via-pink-400 to-lavender-400',
+    bgColor: 'bg-rose-50',
+    path: '/family',
   },
 ];
 

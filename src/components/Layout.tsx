@@ -1,5 +1,5 @@
 import { NavLink, Link } from 'react-router-dom';
-import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Leaf, Smile, Palette, Flower2, Pill, UtensilsCrossed, Moon } from 'lucide-react';
+import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Leaf, Smile, Palette, Flower2, Pill, UtensilsCrossed, Moon, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import GlobalMedicationPopup from '@/components/medication/GlobalMedicationPopup';
 
@@ -16,6 +16,7 @@ const navItems = [
   { to: '/medication', label: '用药提醒', icon: Pill },
   { to: '/mood', label: '情绪治愈', icon: Palette },
   { to: '/menopause', label: '更年期照护', icon: Flower2 },
+  { to: '/family', label: '家庭共享', icon: Users },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

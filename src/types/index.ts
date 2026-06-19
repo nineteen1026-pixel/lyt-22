@@ -396,6 +396,72 @@ export interface DailyNutritionSummary {
   nutrients: { nutrientId: string; amount: number }[];
 }
 
+export type FamilyRelation = 'partner' | 'mother' | 'father' | 'other';
+export type DataCategory = 'cycle' | 'sleep' | 'mood' | 'medication' | 'pregnancy' | 'postpartum' | 'nutrition' | 'pain';
+
+export interface PermissionConfig {
+  cycle: boolean;
+  sleep: boolean;
+  mood: boolean;
+  medication: boolean;
+  pregnancy: boolean;
+  postpartum: boolean;
+  nutrition: boolean;
+  pain: boolean;
+}
+
+export interface FamilyMember {
+  id: string;
+  name: string;
+  relation: FamilyRelation;
+  avatar?: string;
+  permissions: PermissionConfig;
+  createdAt: string;
+  lastAccessedAt?: string;
+  active: boolean;
+}
+
+export interface ShareCode {
+  id: string;
+  code: string;
+  permissions: PermissionConfig;
+  expiresAt: string;
+  createdAt: string;
+  used: boolean;
+  usedBy?: string;
+}
+
+export interface MaskedCycleSummary {
+  cyclePhase: string;
+  daysUntilNextPeriod?: number;
+  hasPainToday: boolean;
+  painLevel?: 'none' | 'mild' | 'moderate' | 'severe';
+}
+
+export interface MaskedSleepSummary {
+  avgDuration: number;
+  avgQuality: number;
+  poorSleepDays: number;
+}
+
+export interface MaskedMoodSummary {
+  recentMood: string;
+  moodTrend: 'improving' | 'stable' | 'declining' | 'unknown';
+}
+
+export interface MaskedMedicationSummary {
+  todayTotal: number;
+  todayTaken: number;
+  adherenceRate: number;
+}
+
+export interface MaskedHealthData {
+  cycle?: MaskedCycleSummary;
+  sleep?: MaskedSleepSummary;
+  mood?: MaskedMoodSummary;
+  medication?: MaskedMedicationSummary;
+}
+
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
@@ -415,6 +481,8 @@ export interface AppState {
   medicationReminders: MedicationReminder[];
   medicationRecords: MedicationRecord[];
   painRecords: PainRecord[];
+  familyMembers: FamilyMember[];
+  shareCodes: ShareCode[];
   setLifeStage: (stage: LifeStage) => void;
   addPeriodRecord: (record: PeriodRecord) => void;
   addOvertimeRecord: (record: OvertimeRecord) => void;
@@ -461,4 +529,12 @@ export interface AppState {
   getPhaseSleepStatistics: () => PhaseSleepStatistics[];
   getSleepImpactAnalysis: () => SleepImpactAnalysis;
   getSleepRecommendations: (analysis: SleepImpactAnalysis) => SleepRecommendation[];
+  addFamilyMember: (member: Omit<FamilyMember, 'id' | 'createdAt'>) => void;
+  updateFamilyMember: (id: string, data: Partial<FamilyMember>) => void;
+  removeFamilyMember: (id: string) => void;
+  updateMemberPermissions: (id: string, permissions: PermissionConfig) => void;
+  generateShareCode: (permissions: PermissionConfig, validHours?: number) => ShareCode;
+  revokeShareCode: (codeId: string) => void;
+  redeemShareCode: (code: string, memberName: string, relation: FamilyRelation) => FamilyMember | null;
+  getMaskedHealthData: (permissions: PermissionConfig) => MaskedHealthData;
 }
