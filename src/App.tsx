@@ -5,6 +5,7 @@ import Teen from "@/pages/Teen";
 import Career from "@/pages/Career";
 import PregnancyPrep from "@/pages/PregnancyPrep";
 import Pregnancy from "@/pages/Pregnancy";
+import Postpartum from "@/pages/Postpartum";
 import Relief from "@/pages/Relief";
 import Mood from "@/pages/Mood";
 import MenopauseCare from "@/pages/Menopause";
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/career" element={<Career />} />
           <Route path="/pregnancy-prep" element={<PregnancyPrep />} />
           <Route path="/pregnancy" element={<Pregnancy />} />
+          <Route path="/postpartum" element={<Postpartum />} />
           <Route path="/relief" element={<Relief />} />
           <Route path="/mood" element={<Mood />} />
           <Route path="/menopause" element={<MenopauseCare />} />

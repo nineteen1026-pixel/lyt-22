@@ -13,6 +13,11 @@ import type {
   LifeStage,
   CycleData,
   PregnancyData,
+  PostpartumData,
+  PelvicFloorRecord,
+  LochiaRecord,
+  BreastfeedingRecord,
+  PostpartumCheckup,
 } from '@/types';
 
 const today = new Date();
@@ -41,6 +46,128 @@ const initialPregnancyData: PregnancyData = {
   lastMenstrualPeriodDate: '',
   manualWeek: null,
 };
+
+const initialPostpartumData: PostpartumData = {
+  deliveryDate: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+  deliveryType: 'vaginal',
+};
+
+const mockPelvicFloorRecords: PelvicFloorRecord[] = [
+  {
+    id: generateId(),
+    date: new Date().toISOString().split('T')[0],
+    time: '09:00',
+    exerciseType: 'kegel',
+    duration: 10,
+    sets: 3,
+    reps: 10,
+    difficulty: 2,
+    notes: '今天感觉肌肉力量有提升',
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    time: '19:30',
+    exerciseType: 'breathing',
+    duration: 15,
+    difficulty: 1,
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0],
+    time: '10:00',
+    exerciseType: 'kegel',
+    duration: 8,
+    sets: 2,
+    reps: 8,
+    difficulty: 2,
+  },
+];
+
+const mockLochiaRecords: LochiaRecord[] = [
+  {
+    id: generateId(),
+    date: new Date().toISOString().split('T')[0],
+    amount: 'light',
+    color: 'brown',
+    odor: 'normal',
+    clots: 'none',
+    symptoms: ['轻微腹痛'],
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    amount: 'light',
+    color: 'pink',
+    odor: 'normal',
+    clots: 'small',
+    symptoms: [],
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0],
+    amount: 'medium',
+    color: 'red',
+    odor: 'slight',
+    clots: 'small',
+    symptoms: ['腰酸'],
+  },
+];
+
+const mockBreastfeedingRecords: BreastfeedingRecord[] = [
+  {
+    id: generateId(),
+    date: new Date().toISOString().split('T')[0],
+    startTime: '08:30',
+    endTime: '08:50',
+    type: 'breast',
+    side: 'left',
+    duration: 20,
+    mood: 'calm',
+  },
+  {
+    id: generateId(),
+    date: new Date().toISOString().split('T')[0],
+    startTime: '11:45',
+    endTime: '12:05',
+    type: 'breast',
+    side: 'right',
+    duration: 20,
+    mood: 'hungry',
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    startTime: '22:00',
+    endTime: '22:25',
+    type: 'breast',
+    side: 'both',
+    duration: 25,
+    mood: 'sleepy',
+  },
+];
+
+const defaultPostpartumCheckups: PostpartumCheckup[] = [
+  {
+    id: generateId(),
+    date: new Date(Date.now() + 28 * 86400000).toISOString().split('T')[0],
+    type: '6week',
+    typeName: '产后6周复查',
+    hospital: '妇幼保健院',
+    doctor: '张医生',
+    completed: false,
+    notes: '盆底评估、子宫恢复检查',
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() + 76 * 86400000).toISOString().split('T')[0],
+    type: '3month',
+    typeName: '产后3个月复查',
+    hospital: '妇幼保健院',
+    completed: false,
+    notes: '全面恢复评估',
+  },
+];
 
 const mockOvertimeRecords: OvertimeRecord[] = [
   {
@@ -186,6 +313,7 @@ export const useAppStore = create<AppState>()(
       lifeStage: 'teen',
       cycleData: initialCycleData,
       pregnancyData: initialPregnancyData,
+      postpartumData: initialPostpartumData,
       overtimeRecords: mockOvertimeRecords,
       ovulationRecords: mockOvulationRecords,
       prenatalCheckups: mockCheckups,
@@ -193,6 +321,10 @@ export const useAppStore = create<AppState>()(
       hotFlashRecords: mockHotFlashRecords,
       sleepRecords: mockSleepRecords,
       hormoneRecords: mockHormoneRecords,
+      pelvicFloorRecords: mockPelvicFloorRecords,
+      lochiaRecords: mockLochiaRecords,
+      breastfeedingRecords: mockBreastfeedingRecords,
+      postpartumCheckups: defaultPostpartumCheckups,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
@@ -241,6 +373,38 @@ export const useAppStore = create<AppState>()(
           pregnancyData: { ...state.pregnancyData, ...data },
         })),
 
+      setPostpartumData: (data: Partial<PostpartumData>) =>
+        set((state) => ({
+          postpartumData: { ...state.postpartumData, ...data },
+        })),
+
+      addPelvicFloorRecord: (record: PelvicFloorRecord) =>
+        set((state) => ({
+          pelvicFloorRecords: [...state.pelvicFloorRecords, record],
+        })),
+
+      addLochiaRecord: (record: LochiaRecord) =>
+        set((state) => ({
+          lochiaRecords: [...state.lochiaRecords, record],
+        })),
+
+      addBreastfeedingRecord: (record: BreastfeedingRecord) =>
+        set((state) => ({
+          breastfeedingRecords: [...state.breastfeedingRecords, record],
+        })),
+
+      addPostpartumCheckup: (checkup: PostpartumCheckup) =>
+        set((state) => ({
+          postpartumCheckups: [...state.postpartumCheckups, checkup],
+        })),
+
+      togglePostpartumCheckupComplete: (id: string) =>
+        set((state) => ({
+          postpartumCheckups: state.postpartumCheckups.map((c) =>
+            c.id === id ? { ...c, completed: !c.completed } : c
+          ),
+        })),
+
       addHotFlashRecord: (record: HotFlashRecord) =>
         set((state) => ({
           hotFlashRecords: [...state.hotFlashRecords, record],
@@ -280,6 +444,56 @@ export const useAppStore = create<AppState>()(
           return lmp.toISOString().split('T')[0];
         }
         return '';
+      },
+
+      getDaysPostpartum: () => {
+        const state = get();
+        if (state.postpartumData.deliveryDate) {
+          const delivery = new Date(state.postpartumData.deliveryDate);
+          const now = new Date();
+          const diff = Math.floor((now.getTime() - delivery.getTime()) / (1000 * 60 * 60 * 24));
+          return Math.max(diff, 0);
+        }
+        return 0;
+      },
+
+      getPelvicFloorTrend: () => {
+        const { pelvicFloorRecords } = get();
+        const map = new Map<string, { count: number; totalDifficulty: number; totalDuration: number }>();
+        for (const r of pelvicFloorRecords) {
+          const entry = map.get(r.date) || { count: 0, totalDifficulty: 0, totalDuration: 0 };
+          entry.count += 1;
+          entry.totalDifficulty += r.difficulty;
+          entry.totalDuration += r.duration;
+          map.set(r.date, entry);
+        }
+        return Array.from(map.entries())
+          .map(([date, { count, totalDifficulty, totalDuration }]) => ({
+            date,
+            count,
+            avgDifficulty: Number((totalDifficulty / count).toFixed(1)),
+            totalDuration,
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      },
+
+      getBreastfeedingStats: () => {
+        const { breastfeedingRecords } = get();
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date(Date.now() - 86400000);
+        const last24h = new Date(Date.now() - 24 * 3600 * 1000);
+
+        const todayRecords = breastfeedingRecords.filter((r) => r.date === today);
+        const last24hRecords = breastfeedingRecords.filter((r) => {
+          const recordDate = new Date(`${r.date}T${r.startTime}`);
+          return recordDate >= last24h;
+        });
+
+        return {
+          todayCount: todayRecords.length,
+          todayTotalMinutes: todayRecords.reduce((sum, r) => sum + (r.duration || 0), 0),
+          last24hCount: last24hRecords.length,
+        };
       },
 
       getNextPeriodDate: () => {
@@ -344,6 +558,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         cycleData: state.cycleData,
         pregnancyData: state.pregnancyData,
+        postpartumData: state.postpartumData,
         overtimeRecords: state.overtimeRecords,
         ovulationRecords: state.ovulationRecords,
         prenatalCheckups: state.prenatalCheckups,
@@ -351,6 +566,10 @@ export const useAppStore = create<AppState>()(
         hotFlashRecords: state.hotFlashRecords,
         sleepRecords: state.sleepRecords,
         hormoneRecords: state.hormoneRecords,
+        pelvicFloorRecords: state.pelvicFloorRecords,
+        lochiaRecords: state.lochiaRecords,
+        breastfeedingRecords: state.breastfeedingRecords,
+        postpartumCheckups: state.postpartumCheckups,
       }),
     }
   )
