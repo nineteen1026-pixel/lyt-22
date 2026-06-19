@@ -96,6 +96,16 @@ const stages = [
     bgColor: 'bg-lavender-50',
     path: '/menopause',
   },
+  {
+    id: 'sleep',
+    title: '睡眠与周期',
+    subtitle: '睡眠记录·周期关联·改善建议',
+    description: '记录睡眠，洞察周期规律，科学改善睡眠质量',
+    icon: Moon,
+    color: 'from-indigo-400 via-purple-400 to-pink-400',
+    bgColor: 'bg-indigo-50',
+    path: '/sleep',
+  },
 ];
 
 export default function Home() {

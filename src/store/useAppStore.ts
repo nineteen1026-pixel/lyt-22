@@ -1316,22 +1316,34 @@ export const useAppStore = create<AppState>()(
         let periodLengthVariation = 0;
         if (stats.cycleCount >= 3) {
           cycleLengthVariation = stats.stdDevCycle;
-          const periodPhaseData = associations.filter((a) => a.cyclePhase === 'period');
-          if (periodPhaseData.length > 1) {
-            const periodDurations: number[] = [];
-            const starts = state.extractPeriodStartDates();
-            for (const start of starts) {
-              const periodRecords = periodPhaseData.filter(
-                (p) => p.date >= start && p.date <= dateStr(addDays(new Date(start), stats.avgPeriodLength + 2))
+          const starts = state.extractPeriodStartDates();
+          if (starts.length >= 2) {
+            const periodLengths: number[] = [];
+            for (let i = 0; i < starts.length; i++) {
+              const start = new Date(starts[i]);
+              const nextStart = i + 1 < starts.length ? new Date(starts[i + 1]) : null;
+              const endDate = nextStart ? addDays(nextStart, -1) : addDays(start, stats.avgPeriodLength + 5);
+              const periodDaysInCycle = cycleData.records.filter(
+                (r) => r.date >= starts[i] && r.date <= dateStr(endDate)
               );
-              if (periodRecords.length > 0) {
-                periodDurations.push(periodRecords.length);
+              if (periodDaysInCycle.length > 0) {
+                const sortedDates = periodDaysInCycle.map((r) => r.date).sort();
+                let consecutiveDays = 1;
+                for (let j = 1; j < sortedDates.length; j++) {
+                  const gap = diffDays(new Date(sortedDates[j]), new Date(sortedDates[j - 1]));
+                  if (gap <= 2) {
+                    consecutiveDays++;
+                  } else {
+                    break;
+                  }
+                }
+                periodLengths.push(consecutiveDays);
               }
             }
-            if (periodDurations.length > 1) {
-              const avgPL = periodDurations.reduce((a, b) => a + b, 0) / periodDurations.length;
+            if (periodLengths.length > 1) {
+              const avgPL = periodLengths.reduce((a, b) => a + b, 0) / periodLengths.length;
               periodLengthVariation = Math.sqrt(
-                periodDurations.reduce((a, b) => a + Math.pow(b - avgPL, 2), 0) / periodDurations.length
+                periodLengths.reduce((a, b) => a + Math.pow(b - avgPL, 2), 0) / periodLengths.length
               );
             }
           }
