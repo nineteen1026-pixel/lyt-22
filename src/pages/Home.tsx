@@ -6,6 +6,7 @@ import {
   Stethoscope,
   Heart,
   Smile,
+  Flower2,
   ChevronRight,
   Calendar,
   Droplets,
@@ -73,6 +74,16 @@ const stages = [
     color: 'from-peach-400 to-orange-400',
     bgColor: 'bg-peach-50',
     path: '/mood',
+  },
+  {
+    id: 'menopause',
+    title: '更年期照护',
+    subtitle: '潮热·睡眠·激素',
+    description: '科学应对更年期，温柔呵护每一天',
+    icon: Flower2,
+    color: 'from-lavender-400 to-purple-500',
+    bgColor: 'bg-lavender-50',
+    path: '/menopause',
   },
 ];
 

@@ -23,7 +23,7 @@ const phaseColors: Record<HormoneRecord['phase'], string> = {
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export default function HormoneAnalysis() {
-  const { hormoneRecords, addHormoneRecord, getHormoneTrend, cycleData } = useAppStore();
+  const { hormoneRecords, addHormoneRecord, getHormoneTrend, cycleData, hotFlashRecords, sleepRecords } = useAppStore();
   const [showModal, setShowModal] = useState(false);
   const [estrogenLevel, setEstrogenLevel] = useState<number | ''>('');
   const [progesteroneLevel, setProgesteroneLevel] = useState<number | ''>('');
@@ -45,6 +45,10 @@ export default function HormoneAnalysis() {
     ? (trend[trend.length - 1].fsh! > trend[trend.length - 2].fsh! ? 'up' : 'down')
     : 'stable';
 
+  const daysSinceLastPeriod = cycleData.lastPeriodDate
+    ? Math.floor((Date.now() - new Date(cycleData.lastPeriodDate).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
   const getHormoneStatus = () => {
     if (!latest) return null;
     const isPeriOrPost = latest.phase === 'perimenopausal' || latest.phase === 'postmenopausal';
@@ -56,6 +60,111 @@ export default function HormoneAnalysis() {
   };
 
   const hormoneStatus = getHormoneStatus();
+
+  const getComprehensiveAnalysis = () => {
+    const items: { icon: string; text: string; color: string }[] = [];
+
+    if (daysSinceLastPeriod !== null) {
+      if (daysSinceLastPeriod > 90) {
+        items.push({
+          icon: '🔴',
+          text: `已停经 ${daysSinceLastPeriod} 天，结合激素指标判断是否已绝经`,
+          color: 'text-rose-600',
+        });
+      } else if (daysSinceLastPeriod > cycleData.cycleLength + 7) {
+        items.push({
+          icon: '🟡',
+          text: `经期推迟 ${daysSinceLastPeriod - cycleData.cycleLength} 天，与激素波动相关`,
+          color: 'text-amber-600',
+        });
+      } else if (cycleData.cycleLength > 35) {
+        items.push({
+          icon: '🟡',
+          text: `周期 ${cycleData.cycleLength} 天（延长），雌激素下降可能导致周期紊乱`,
+          color: 'text-amber-600',
+        });
+      } else if (cycleData.cycleLength < 21) {
+        items.push({
+          icon: '🟡',
+          text: `周期 ${cycleData.cycleLength} 天（缩短），FSH 波动可能影响周期规律`,
+          color: 'text-amber-600',
+        });
+      } else {
+        items.push({
+          icon: '🟢',
+          text: `周期 ${cycleData.cycleLength} 天，目前仍保持规律`,
+          color: 'text-mint-600',
+        });
+      }
+    }
+
+    if (latest && latest.fshLevel !== undefined) {
+      if (latest.fshLevel > 40) {
+        items.push({
+          icon: '📈',
+          text: `FSH ${latest.fshLevel} mIU/mL，显著升高提示卵巢功能衰退`,
+          color: 'text-rose-600',
+        });
+      } else if (latest.fshLevel > 25) {
+        items.push({
+          icon: '📊',
+          text: `FSH ${latest.fshLevel} mIU/mL，偏高提示进入围绝经期`,
+          color: 'text-amber-600',
+        });
+      }
+    }
+
+    if (latest && latest.estrogenLevel !== undefined) {
+      if (latest.estrogenLevel < 30) {
+        items.push({
+          icon: '📉',
+          text: `雌二醇 ${latest.estrogenLevel} pg/mL，偏低与潮热、盗汗症状相关`,
+          color: 'text-rose-600',
+        });
+      } else if (latest.estrogenLevel < 50) {
+        items.push({
+          icon: '📊',
+          text: `雌二醇 ${latest.estrogenLevel} pg/mL，处于较低水平`,
+          color: 'text-amber-600',
+        });
+      }
+    }
+
+    if (hotFlashRecords.length > 0) {
+      const avgSeverity = hotFlashRecords.reduce((sum, r) => sum + (r.severity === 'mild' ? 1 : r.severity === 'moderate' ? 2 : 3), 0) / hotFlashRecords.length;
+      if (avgSeverity >= 2) {
+        items.push({
+          icon: '🔥',
+          text: `潮热平均严重度 ${avgSeverity.toFixed(1)}/3，建议与激素水平联合评估`,
+          color: 'text-orange-600',
+        });
+      }
+    }
+
+    if (sleepRecords.length > 0) {
+      const nightSweatCount = sleepRecords.filter((r) => r.nightSweats).length;
+      const nightSweatRate = Math.round((nightSweatCount / sleepRecords.length) * 100);
+      if (nightSweatRate > 50) {
+        items.push({
+          icon: '💧',
+          text: `夜间盗汗发生率 ${nightSweatRate}%，与雌激素下降高度相关`,
+          color: 'text-indigo-600',
+        });
+      }
+    }
+
+    if (latest) {
+      items.push({
+        icon: '📍',
+        text: `当前阶段：${phaseLabels[latest.phase]}，上次经期 ${cycleData.lastPeriodDate || '未记录'}`,
+        color: 'text-gray-600',
+      });
+    }
+
+    return items;
+  };
+
+  const analysisItems = getComprehensiveAnalysis();
 
   const handleSave = () => {
     addHormoneRecord({
@@ -142,11 +251,11 @@ export default function HormoneAnalysis() {
         )}>
           <div className="flex items-start gap-3">
             <Info className={cn(
-              'w-5 h-5 mt-0.5',
+              'w-5 h-5 mt-0.5 flex-shrink-0',
               hormoneStatus === 'highRisk' ? 'text-red-400' :
               hormoneStatus === 'monitor' ? 'text-amber-400' : 'text-mint-400'
             )} />
-            <div>
+            <div className="flex-1">
               <p className={cn(
                 'text-sm font-medium',
                 hormoneStatus === 'highRisk' ? 'text-red-700' :
@@ -162,9 +271,19 @@ export default function HormoneAnalysis() {
                   ? '部分指标有波动，建议定期复查并记录变化趋势。'
                   : '当前激素水平在可控范围，保持规律监测即可。'}
               </p>
-              <p className="text-xs text-gray-400 mt-1">
-                关联周期数据: 上次经期 {cycleData.lastPeriodDate || '未记录'}, 周期 {cycleData.cycleLength}天
-              </p>
+              {analysisItems.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-600 mb-1.5">多维度关联分析</p>
+                  <ul className="space-y-1">
+                    {analysisItems.map((item, idx) => (
+                      <li key={idx} className={`flex items-start gap-2 text-xs ${item.color}`}>
+                        <span className="flex-shrink-0">{item.icon}</span>
+                        <span>{item.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>

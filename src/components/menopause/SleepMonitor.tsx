@@ -10,7 +10,7 @@ const qualityColors = ['from-red-400 to-rose-500', 'from-orange-400 to-amber-500
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export default function SleepMonitor() {
-  const { sleepRecords, addSleepRecord, getSleepTrend, cycleData } = useAppStore();
+  const { sleepRecords, addSleepRecord, getSleepTrend, cycleData, hotFlashRecords } = useAppStore();
   const [showModal, setShowModal] = useState(false);
   const [bedTime, setBedTime] = useState('23:00');
   const [wakeTime, setWakeTime] = useState('06:30');
@@ -31,11 +31,82 @@ export default function SleepMonitor() {
     ? (sleepRecords.reduce((sum, r) => sum + r.quality, 0) / sleepRecords.length).toFixed(1)
     : '—';
 
-  const cycleInfo = cycleData.cycleLength > 35
-    ? '周期延长，可能与更年期激素变化相关'
-    : cycleData.cycleLength < 21
-    ? '周期缩短，建议关注激素水平'
-    : '周期正常范围内';
+  const daysSinceLastPeriod = cycleData.lastPeriodDate
+    ? Math.floor((Date.now() - new Date(cycleData.lastPeriodDate).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const nightSweatCount = sleepRecords.filter((r) => r.nightSweats).length;
+  const nightSweatRate = sleepRecords.length > 0
+    ? Math.round((nightSweatCount / sleepRecords.length) * 100)
+    : 0;
+
+  const nightHotFlashCount = hotFlashRecords.filter((r) => r.time >= '20:00' || r.time <= '06:00').length;
+
+  const getCycleAnalysis = () => {
+    const items: { icon: string; text: string; color: string }[] = [];
+
+    if (daysSinceLastPeriod !== null) {
+      if (daysSinceLastPeriod > 90) {
+        items.push({
+          icon: '🔴',
+          text: `已停经 ${daysSinceLastPeriod} 天，可能已进入绝经期`,
+          color: 'text-rose-600',
+        });
+      } else if (daysSinceLastPeriod > cycleData.cycleLength + 7) {
+        items.push({
+          icon: '🟡',
+          text: `经期推迟 ${daysSinceLastPeriod - cycleData.cycleLength} 天，更年期常见周期紊乱`,
+          color: 'text-amber-600',
+        });
+      } else if (cycleData.cycleLength > 35) {
+        items.push({
+          icon: '🟡',
+          text: `周期 ${cycleData.cycleLength} 天（延长），与雌激素下降相关`,
+          color: 'text-amber-600',
+        });
+      } else if (cycleData.cycleLength < 21) {
+        items.push({
+          icon: '🟡',
+          text: `周期 ${cycleData.cycleLength} 天（缩短），建议关注激素波动`,
+          color: 'text-amber-600',
+        });
+      } else {
+        items.push({
+          icon: '🟢',
+          text: `周期 ${cycleData.cycleLength} 天，目前在正常范围内`,
+          color: 'text-mint-600',
+        });
+      }
+    }
+
+    if (nightSweatRate > 50) {
+      items.push({
+        icon: '💧',
+        text: `夜间盗汗发生率 ${nightSweatRate}%，与潮热高度相关`,
+        color: 'text-indigo-600',
+      });
+    }
+
+    if (nightHotFlashCount > 0) {
+      items.push({
+        icon: '🔥',
+        text: `记录到 ${nightHotFlashCount} 次夜间潮热，影响睡眠质量`,
+        color: 'text-orange-600',
+      });
+    }
+
+    if (Number(avgQuality) < 3) {
+      items.push({
+        icon: '😴',
+        text: `近期睡眠质量偏低（${avgQuality}/5），建议调整作息`,
+        color: 'text-purple-600',
+      });
+    }
+
+    return items;
+  };
+
+  const cycleAnalysisItems = getCycleAnalysis();
 
   const handleSave = () => {
     const [bh, bm] = bedTime.split(':').map(Number);
@@ -100,11 +171,21 @@ export default function SleepMonitor() {
 
       <div className="card p-4 mb-6 bg-gradient-to-r from-indigo-50/80 to-lavender-50/80 border border-indigo-100/50">
         <div className="flex items-start gap-3">
-          <Clock className="w-5 h-5 text-indigo-400 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-gray-700">周期关联</p>
-            <p className="text-xs text-gray-500 mt-0.5">{cycleInfo}</p>
-            <p className="text-xs text-gray-400 mt-1">当前周期长度: {cycleData.cycleLength}天</p>
+          <Clock className="w-5 h-5 text-indigo-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-700 mb-2">周期与睡眠关联分析</p>
+            {cycleAnalysisItems.length > 0 ? (
+              <ul className="space-y-1.5">
+                {cycleAnalysisItems.map((item, idx) => (
+                  <li key={idx} className={`flex items-start gap-2 text-xs ${item.color}`}>
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    <span>{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-gray-500">记录更多数据以获取关联分析</p>
+            )}
           </div>
         </div>
       </div>
