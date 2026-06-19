@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Lato', sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fdf2f8 0%, #f5f3ff 50%, #f0f9ff 100%);
+  background-attachment: fixed;
+}
+
+@layer components {
+  .card {
+    @apply bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/50;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary-400 to-primary-500 text-white px-6 py-3 rounded-full font-medium shadow-lg shadow-primary-200/50 hover:shadow-xl hover:shadow-primary-300/60 transition-all duration-300 hover:-translate-y-0.5;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-primary-600 px-6 py-3 rounded-full font-medium shadow-md border border-primary-100 hover:bg-primary-50 transition-all duration-300;
+  }
+  
+  .nav-link {
+    @apply px-4 py-2 rounded-full text-gray-600 hover:text-primary-600 hover:bg-primary-50 transition-all duration-300;
+  }
+  
+  .nav-link-active {
+    @apply bg-gradient-to-r from-primary-400 to-primary-500 text-white shadow-md shadow-primary-200/50;
+  }
+  
+  .section-title {
+    @apply font-display text-3xl md:text-4xl font-semibold text-gray-800 mb-2;
+  }
+  
+  .section-subtitle {
+    @apply text-gray-500 text-lg;
+  }
+  
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-500 via-lavender-500 to-primary-400;
+  }
+  
+  .glass {
+    @apply bg-white/60 backdrop-blur-lg border border-white/50;
+  }
+  
+  .floating {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .floating-delayed {
+    animation: float 6s ease-in-out infinite;
+    animation-delay: -3s;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
