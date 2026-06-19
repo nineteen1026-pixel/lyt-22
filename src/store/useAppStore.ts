@@ -446,9 +446,46 @@ export const useAppStore = create<AppState>()(
         })),
 
       setCycleData: (data: Partial<CycleData>) =>
-        set((state) => ({
-          cycleData: { ...state.cycleData, ...data },
-        })),
+        set((state) => {
+          const merged = { ...state.cycleData, ...data };
+          let starts = [...(merged.periodStartDates || [])];
+
+          if (data.lastPeriodDate !== undefined && data.lastPeriodDate !== state.cycleData.lastPeriodDate) {
+            const newLast = data.lastPeriodDate;
+            const periodLen = merged.periodLength;
+            if (!starts.includes(newLast)) {
+              const isWithinExisting = starts.some((s) => {
+                const d = diffDays(new Date(newLast), new Date(s));
+                return d >= 0 && d < periodLen;
+              });
+              if (!isWithinExisting) {
+                starts.push(newLast);
+                starts = Array.from(new Set(starts)).sort();
+              }
+            }
+            const sorted = [...starts].sort();
+            if (sorted.length > 0 && newLast > sorted[sorted.length - 1]) {
+              merged.lastPeriodDate = newLast;
+            }
+          }
+
+          if (data.firstPeriodDate !== undefined && data.firstPeriodDate !== state.cycleData.firstPeriodDate) {
+            if (data.firstPeriodDate && !starts.includes(data.firstPeriodDate)) {
+              const periodLen = merged.periodLength;
+              const isWithinExisting = starts.some((s) => {
+                const d = diffDays(new Date(data.firstPeriodDate!), new Date(s));
+                return d >= 0 && d < periodLen;
+              });
+              if (!isWithinExisting) {
+                starts.push(data.firstPeriodDate);
+                starts = Array.from(new Set(starts)).sort();
+              }
+            }
+          }
+
+          merged.periodStartDates = starts;
+          return { cycleData: merged };
+        }),
 
       setPregnancyData: (data: Partial<PregnancyData>) =>
         set((state) => ({

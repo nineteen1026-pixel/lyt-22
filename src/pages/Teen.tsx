@@ -1,8 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Sparkles,
   Calendar,
-  Droplets,
   BookOpen,
   Heart,
   Star,
@@ -68,18 +67,17 @@ const confidenceColors = {
 };
 
 export default function TeenPage() {
-  const {
-    cycleData,
-    setCycleData,
-    addPeriodRecord,
-    getPeriodPrediction,
-    getCalendarDayInfo,
-    getCycleStatistics,
-    extractPeriodStartDates,
-  } = useAppStore();
+  const cycleData = useAppStore((s) => s.cycleData);
+  const setCycleData = useAppStore((s) => s.setCycleData);
+  const addPeriodRecord = useAppStore((s) => s.addPeriodRecord);
+  const getPeriodPrediction = useAppStore((s) => s.getPeriodPrediction);
+  const getCalendarDayInfo = useAppStore((s) => s.getCalendarDayInfo);
+  const getCycleStatistics = useAppStore((s) => s.getCycleStatistics);
+  const extractPeriodStartDates = useAppStore((s) => s.extractPeriodStartDates);
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
   const [flow, setFlow] = useState<'light' | 'medium' | 'heavy'>('medium');
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [selectedMood, setSelectedMood] = useState('平静');
@@ -88,9 +86,9 @@ export default function TeenPage() {
   const [firstPeriodDate, setFirstPeriodDate] = useState(cycleData.firstPeriodDate);
   const [lastPeriodDate, setLastPeriodDate] = useState(cycleData.lastPeriodDate);
 
-  const prediction = useMemo(() => getPeriodPrediction(), [getPeriodPrediction, cycleData.records.length, cycleData.periodStartDates?.length, cycleData.lastPeriodDate]);
-  const stats = useMemo(() => getCycleStatistics(), [getCycleStatistics, cycleData.records.length, cycleData.periodStartDates?.length]);
-  const startDates = useMemo(() => extractPeriodStartDates(), [extractPeriodStartDates, cycleData.records.length]);
+  const prediction = getPeriodPrediction();
+  const stats = getCycleStatistics();
+  const startDates = extractPeriodStartDates();
 
   const phaseInfo = phaseLabels[prediction.cyclePhase];
   const confInfo = confidenceColors[prediction.confidenceLevel];
@@ -126,7 +124,7 @@ export default function TeenPage() {
   const handleSaveRecord = () => {
     addPeriodRecord({
       id: Math.random().toString(36).substr(2, 9),
-      date: new Date().toISOString().split('T')[0],
+      date: recordDate,
       flow,
       symptoms: selectedSymptoms,
       mood: selectedMood,
@@ -135,13 +133,12 @@ export default function TeenPage() {
   };
 
   const handleSaveSettings = () => {
-    const newData: any = {
+    setCycleData({
       cycleLength,
       periodLength,
       firstPeriodDate,
       lastPeriodDate,
-    };
-    setCycleData(newData);
+    });
   };
 
   const getDayClasses = (info: ReturnType<typeof getCalendarDayInfo>) => {
@@ -238,17 +235,17 @@ export default function TeenPage() {
               <div className="flex items-center gap-2 mb-2">
                 <Shield className={cn('w-5 h-5', confInfo.text)} />
                 <span className={cn('text-sm font-medium', confInfo.text)}>
-                  预测置信度 · {prediction.confidencePercent}% ({confInfo.label})
+                  预测可靠度 · {confInfo.label}
                 </span>
               </div>
-              <div className="w-full h-2.5 bg-white rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-white rounded-full overflow-hidden mb-2">
                 <div
                   className={cn('h-full rounded-full transition-all', confInfo.color)}
                   style={{ width: `${prediction.confidencePercent}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-2">
-                置信区间：{prediction.confidenceIntervalStart} ~ {prediction.confidenceIntervalEnd}
+              <p className="text-xs text-gray-500">
+                基于历史数据的预测把握程度
               </p>
             </div>
           </div>
@@ -378,13 +375,16 @@ export default function TeenPage() {
               <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Info className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm font-medium text-amber-700">95% 置信区间</span>
+                  <span className="text-sm font-medium text-amber-700">可能来潮范围</span>
                 </div>
                 <p className="text-lg font-bold text-gray-800 mb-1">
                   {prediction.confidenceIntervalStart}
                 </p>
                 <p className="text-xs text-gray-500">
                   至 {prediction.confidenceIntervalEnd}
+                </p>
+                <p className="text-xs text-amber-600 mt-2">
+                  根据历史波动推算，实际来潮大概率落在此范围内
                 </p>
               </div>
               <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-50 border border-sky-100">
@@ -531,11 +531,17 @@ export default function TeenPage() {
           </div>
 
           <button
-            onClick={() => setShowRecordModal(true)}
+            onClick={() => {
+              setRecordDate(new Date().toISOString().split('T')[0]);
+              setFlow('medium');
+              setSelectedSymptoms([]);
+              setSelectedMood('平静');
+              setShowRecordModal(true);
+            }}
             className="w-full btn-primary flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            记录今天
+            补录经期
           </button>
         </div>
       </div>
@@ -545,10 +551,22 @@ export default function TeenPage() {
           <div className="card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
               <Heart className="w-5 h-5 text-pink-500" />
-              记录今天
+              补录经期记录
             </h2>
 
             <div className="space-y-6">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">记录日期</label>
+                <input
+                  type="date"
+                  value={recordDate}
+                  onChange={(e) => setRecordDate(e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all"
+                />
+                <p className="text-xs text-gray-400 mt-1">可选择历史日期补录</p>
+              </div>
+
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">经量</label>
                 <div className="flex gap-3">
