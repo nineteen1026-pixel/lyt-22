@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Shield,
   Lock,
@@ -68,6 +69,36 @@ export default function Vault() {
 
   const needsSetup = !hasPin();
 
+  const autoLockedRef = useRef(false);
+  useEffect(() => {
+    autoLockedRef.current = false;
+    return () => {
+      if (isUnlocked && !autoLockedRef.current) {
+        autoLockedRef.current = true;
+        useVaultStore.getState().lock();
+      }
+    };
+  }, [isUnlocked]);
+
+  useEffect(() => {
+    const onPageHide = () => {
+      if (isUnlocked) {
+        autoLockedRef.current = true;
+        useVaultStore.getState().lock();
+      }
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && isUnlocked) {
+        autoLockedRef.current = true;
+        useVaultStore.getState().lock();
+      }
+    });
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+    };
+  }, [isUnlocked]);
+
   const handlePinDigit = useCallback((digit: string) => {
     setPinInput((prev) => {
       if (prev.length >= 6) return prev;
@@ -81,8 +112,9 @@ export default function Vault() {
 
   useEffect(() => {
     if (needsSetup || isUnlocked) return;
-    if (pinInput.length !== 4 && pinInput.length !== 6) return;
+    if (pinInput.length < 4) return;
 
+    let timer: ReturnType<typeof setTimeout>;
     const verify = async () => {
       setIsUnlocking(true);
       const ok = await unlock(pinInput);
@@ -91,14 +123,16 @@ export default function Vault() {
         setPinError('');
       } else {
         setPinError('PIN 码错误，请重试');
-        setTimeout(() => {
+        timer = setTimeout(() => {
           setPinInput('');
           setPinError('');
         }, 1500);
       }
       setIsUnlocking(false);
     };
-    verify();
+
+    timer = setTimeout(verify, 300);
+    return () => clearTimeout(timer);
   }, [pinInput, needsSetup, isUnlocked, unlock]);
 
   const handleSetupPin = async () => {
