@@ -771,6 +771,258 @@ const buildDefaultRehabPhases = (): RehabPhase[] => {
   ];
 };
 
+const buildPelvicFloorPhases = (): RehabPhase[] => [
+  {
+    id: 'phase1' as RehabPhaseType,
+    name: '第一阶段 · 肌肉唤醒',
+    description: '0-4周，学习正确感知和收缩盆底肌',
+    durationWeeks: 4,
+    goals: ['学会正确识别盆底肌', '建立神经-肌肉连接', '培养每日练习习惯'],
+    exercises: [
+      { id: 'pf1-e1', name: '凯格尔基础收缩', description: '收缩盆底肌保持3秒后放松3秒，仰卧位练习', duration: 5, sets: 3, reps: 10, restSeconds: 30, difficulty: 1, tips: ['仰卧屈膝位最容易找到肌肉', '想象憋尿的感觉', '只收缩盆底不夹臀'], precautions: ['不要憋气', '不要收缩腹部'], category: 'strength' as const },
+      { id: 'pf1-e2', name: '盆底肌快速收缩', description: '快速收缩盆底肌1秒后放松2秒', duration: 5, sets: 2, reps: 15, restSeconds: 30, difficulty: 1, tips: ['速度优先而非力量', '感受肌肉的快速反应'], category: 'strength' as const },
+      { id: 'pf1-e3', name: '配合呼吸的盆底训练', description: '吸气放松盆底，呼气收缩盆底', duration: 5, sets: 3, reps: 8, restSeconds: 30, difficulty: 1, tips: ['呼吸节奏是关键', '呼气时想象电梯向上提'], category: 'breathing' as const },
+    ],
+    weeklyFrequency: 6,
+    color: 'text-rose-600',
+    gradient: 'from-rose-400 to-pink-500',
+  },
+  {
+    id: 'phase2' as RehabPhaseType,
+    name: '第二阶段 · 力量提升',
+    description: '4-8周，增加收缩时长和力量',
+    durationWeeks: 4,
+    goals: ['延长收缩保持时间至10秒', '在不同体位下完成训练', '开始功能性训练'],
+    exercises: [
+      { id: 'pf2-e1', name: '渐进式凯格尔', description: '收缩盆底肌保持5-10秒后放松等长时间', duration: 8, sets: 3, reps: 10, restSeconds: 45, difficulty: 2, tips: ['逐步延长保持时间', '放松时间和收缩时间等长'], category: 'strength' as const },
+      { id: 'pf2-e2', name: '站姿盆底训练', description: '站立位进行凯格尔收缩训练', duration: 5, sets: 3, reps: 12, restSeconds: 30, difficulty: 2, tips: ['站姿比仰卧更有挑战', '保持正常呼吸'], category: 'strength' as const },
+      { id: 'pf2-e3', name: '桥式+盆底收缩', description: '做桥式的同时收缩盆底肌', duration: 8, sets: 3, reps: 10, restSeconds: 45, difficulty: 2, tips: ['先抬臀再收缩盆底', '下放时放松盆底'], category: 'strength' as const },
+    ],
+    weeklyFrequency: 5,
+    color: 'text-teal-600',
+    gradient: 'from-teal-400 to-emerald-500',
+  },
+  {
+    id: 'phase3' as RehabPhaseType,
+    name: '第三阶段 · 功能整合',
+    description: '8-16周，在日常活动中整合盆底训练',
+    durationWeeks: 8,
+    goals: ['咳嗽/打喷嚏前自动收缩盆底', '运动时维持盆底张力', '改善盆底肌耐力'],
+    exercises: [
+      { id: 'pf3-e1', name: '功能位盆底训练', description: '在深蹲、弓步等功能性动作中配合盆底收缩', duration: 10, sets: 3, reps: 8, restSeconds: 60, difficulty: 3, tips: ['动作与收缩协调', '注意不要屏气'], category: 'strength' as const },
+      { id: 'pf3-e2', name: '盆底肌耐力训练', description: '收缩盆底保持15-20秒，重复多组', duration: 10, sets: 3, reps: 6, restSeconds: 60, difficulty: 3, tips: ['逐步延长保持时间', '感到疲劳时休息'], category: 'strength' as const },
+      { id: 'pf3-e3', name: '快走+盆底维持', description: '快走时保持盆底肌轻度收缩', duration: 15, sets: 1, reps: 1, restSeconds: 0, difficulty: 2, tips: ['不必全力收缩', '20-30%力度即可维持'], category: 'cardio' as const },
+    ],
+    weeklyFrequency: 5,
+    color: 'text-violet-600',
+    gradient: 'from-violet-400 to-purple-500',
+  },
+  {
+    id: 'phase4' as RehabPhaseType,
+    name: '第四阶段 · 长期维护',
+    description: '16周以后，建立终身盆底保养习惯',
+    durationWeeks: 12,
+    goals: ['维持盆底肌功能', '预防盆底功能障碍复发', '融入日常运动'],
+    exercises: [
+      { id: 'pf4-e1', name: '盆底肌高级训练', description: '在不同体位和负荷下进行盆底收缩', duration: 10, sets: 3, reps: 10, restSeconds: 45, difficulty: 3, tips: ['增加跳跃和负重场景', '训练前预收缩盆底'], category: 'strength' as const },
+      { id: 'pf4-e2', name: '慢跑+盆底维持', description: '慢跑时注意盆底肌的支撑', duration: 20, sets: 1, reps: 1, restSeconds: 0, difficulty: 3, tips: ['从中速开始', '有漏尿感立即停止'], category: 'cardio' as const },
+      { id: 'pf4-e3', name: '全身拉伸放松', description: '包括盆底肌在内的全身放松拉伸', duration: 10, sets: 1, reps: 1, restSeconds: 0, difficulty: 1, tips: ['注意髋部和骨盆区域拉伸', '配合深呼吸放松盆底'], category: 'cool-down' as const },
+    ],
+    weeklyFrequency: 4,
+    color: 'text-fuchsia-600',
+    gradient: 'from-fuchsia-400 to-pink-500',
+  },
+];
+
+const buildCorePhases = (): RehabPhase[] => [
+  {
+    id: 'phase1' as RehabPhaseType,
+    name: '第一阶段 · 腹直肌评估与呼吸',
+    description: '0-4周，评估分离程度，学习腹横肌激活',
+    durationWeeks: 4,
+    goals: ['评估腹直肌分离程度', '学会腹横肌主动收缩', '避免加重分离的动作'],
+    exercises: [
+      { id: 'c1-e1', name: '腹横肌激活', description: '仰卧屈膝，手指放在髂骨内侧，呼气时收缩下腹向脊柱靠拢', duration: 5, sets: 3, reps: 10, restSeconds: 30, difficulty: 1, tips: ['想象肚脐向脊柱方向靠近', '不要屏气', '感受腹横肌的收缩'], precautions: ['不要做卷腹类动作'], category: 'breathing' as const },
+      { id: 'c1-e2', name: '仰卧腹部收缩', description: '仰卧位，呼气时缓慢收紧下腹，吸气时放松', duration: 5, sets: 3, reps: 12, restSeconds: 30, difficulty: 1, tips: ['收缩力度轻柔', '保持骨盆稳定'], category: 'strength' as const },
+      { id: 'c1-e3', name: '足跟滑动', description: '仰卧屈膝，缓慢伸直一侧腿再收回，保持腹部收紧', duration: 8, sets: 2, reps: 8, restSeconds: 30, difficulty: 1, tips: ['腹部不要鼓起', '动作要慢'], category: 'strength' as const },
+    ],
+    weeklyFrequency: 5,
+    color: 'text-sky-600',
+    gradient: 'from-sky-400 to-cyan-500',
+  },
+  {
+    id: 'phase2' as RehabPhaseType,
+    name: '第二阶段 · 深层核心重建',
+    description: '4-8周，强化腹横肌和多裂肌',
+    durationWeeks: 4,
+    goals: ['增强腹横肌耐力', '改善腰椎稳定性', '分离逐渐缩小'],
+    exercises: [
+      { id: 'c2-e1', name: '死虫式', description: '仰卧屈膝90度，交替伸展对侧手脚，保持腰部贴地', duration: 8, sets: 3, reps: 10, restSeconds: 45, difficulty: 2, tips: ['腰部始终贴地', '动作缓慢控制', '呼气时伸展'], category: 'strength' as const },
+      { id: 'c2-e2', name: '鸟狗式', description: '四点支撑，交替伸展对侧手和腿', duration: 8, sets: 3, reps: 8, restSeconds: 45, difficulty: 2, tips: ['保持脊柱中立', '不要旋转骨盆'], category: 'strength' as const },
+      { id: 'c2-e3', name: '改良侧平板', description: '侧卧屈膝，用前臂和膝盖支撑抬起骨盆', duration: 6, sets: 2, reps: 4, restSeconds: 45, difficulty: 2, tips: ['保持身体一条线', '从短时间开始'], category: 'strength' as const },
+    ],
+    weeklyFrequency: 5,
+    color: 'text-teal-600',
+    gradient: 'from-teal-400 to-emerald-500',
+  },
+  {
+    id: 'phase3' as RehabPhaseType,
+    name: '第三阶段 · 核心功能强化',
+    description: '8-16周，加入动态核心训练',
+    durationWeeks: 8,
+    goals: ['核心肌群协调发力', '支撑日常功能活动', '腹直肌分离进一步改善'],
+    exercises: [
+      { id: 'c3-e1', name: '平板支撑', description: '前臂和脚尖支撑，保持身体呈一条直线', duration: 5, sets: 3, reps: 3, restSeconds: 60, difficulty: 3, tips: ['从15秒开始', '核心收紧不要塌腰'], precautions: ['腰痛时停止'], category: 'strength' as const },
+      { id: 'c3-e2', name: '帕洛夫推压', description: '站姿双手持弹力带向前推，抵抗旋转力', duration: 8, sets: 3, reps: 10, restSeconds: 45, difficulty: 3, tips: ['保持身体不旋转', '感受侧腹发力'], category: 'strength' as const },
+      { id: 'c3-e3', name: '登山者', description: '平板支撑位交替收膝', duration: 8, sets: 3, reps: 10, restSeconds: 60, difficulty: 3, tips: ['速度不要太快', '保持核心稳定'], category: 'cardio' as const },
+    ],
+    weeklyFrequency: 4,
+    color: 'text-violet-600',
+    gradient: 'from-violet-400 to-purple-500',
+  },
+  {
+    id: 'phase4' as RehabPhaseType,
+    name: '第四阶段 · 全面核心恢复',
+    description: '16周以后，回归正常核心训练',
+    durationWeeks: 12,
+    goals: ['腹直肌分离恢复至2指内', '可安全进行卷腹类动作', '建立长期核心训练习惯'],
+    exercises: [
+      { id: 'c4-e1', name: '卷腹', description: '仰卧屈膝，双手放胸前，用腹力抬起肩胛骨离地', duration: 10, sets: 3, reps: 15, restSeconds: 45, difficulty: 4, tips: ['不要用手拉头', '下背贴地', '动作幅度小而精准'], precautions: ['分离大于2指时继续上一阶段'], category: 'strength' as const },
+      { id: 'c4-e2', name: '侧平板支撑', description: '侧卧，前臂和脚支撑身体呈一条直线', duration: 6, sets: 3, reps: 2, restSeconds: 60, difficulty: 4, tips: ['从直膝版本开始', '保持髋部不塌'], category: 'strength' as const },
+      { id: 'c4-e3', name: '俄罗斯转体', description: '坐姿身体后倾，双手持重物左右转体', duration: 8, sets: 3, reps: 12, restSeconds: 45, difficulty: 3, tips: ['转体幅度适中', '保持核心稳定'], category: 'strength' as const },
+    ],
+    weeklyFrequency: 4,
+    color: 'text-fuchsia-600',
+    gradient: 'from-fuchsia-400 to-pink-500',
+  },
+];
+
+const buildGeneralPhases = (): RehabPhase[] => [
+  {
+    id: 'phase1' as RehabPhaseType,
+    name: '第一阶段 · 适应性训练',
+    description: '1-4周，建立运动习惯和基础体能',
+    durationWeeks: 4,
+    goals: ['养成规律运动习惯', '唤醒全身肌肉', '改善关节活动度'],
+    exercises: [
+      { id: 'g1-e1', name: '全身关节热身', description: '从头到脚依次活动各关节，每个方向8次', duration: 8, sets: 1, reps: 1, restSeconds: 0, difficulty: 1, tips: ['动作缓慢流畅', '不要弹振关节'], category: 'warmup' as const },
+      { id: 'g1-e2', name: '靠墙俯卧撑', description: '面对墙壁做推墙俯卧撑，锻炼上肢和胸部', duration: 5, sets: 3, reps: 10, restSeconds: 30, difficulty: 1, tips: ['身体保持直线', '核心收紧'], category: 'strength' as const },
+      { id: 'g1-e3', name: '原地踏步', description: '原地高抬腿踏步，保持节奏', duration: 10, sets: 2, reps: 1, restSeconds: 30, difficulty: 1, tips: ['保持正确姿势', '逐步加快频率'], category: 'cardio' as const },
+    ],
+    weeklyFrequency: 4,
+    color: 'text-sky-600',
+    gradient: 'from-sky-400 to-cyan-500',
+  },
+  {
+    id: 'phase2' as RehabPhaseType,
+    name: '第二阶段 · 基础力量',
+    description: '4-8周，提升肌力和肌耐力',
+    durationWeeks: 4,
+    goals: ['提升基础肌力', '改善核心控制', '增加训练量'],
+    exercises: [
+      { id: 'g2-e1', name: '跪姿俯卧撑', description: '双膝着地做俯卧撑，降低难度同时锻炼上肢', duration: 8, sets: 3, reps: 8, restSeconds: 45, difficulty: 2, tips: ['身体从膝到头保持直线', '下落时控制速度'], category: 'strength' as const },
+      { id: 'g2-e2', name: '弓步蹲', description: '交替前弓步下蹲', duration: 8, sets: 3, reps: 10, restSeconds: 45, difficulty: 2, tips: ['前膝不超过脚尖', '保持平衡'], category: 'strength' as const },
+      { id: 'g2-e3', name: '快走', description: '中等速度持续快走', duration: 20, sets: 1, reps: 1, restSeconds: 0, difficulty: 2, tips: ['保持正确步态', '逐步提速'], category: 'cardio' as const },
+    ],
+    weeklyFrequency: 4,
+    color: 'text-teal-600',
+    gradient: 'from-teal-400 to-emerald-500',
+  },
+  {
+    id: 'phase3' as RehabPhaseType,
+    name: '第三阶段 · 进阶训练',
+    description: '8-16周，增加运动强度和复杂度',
+    durationWeeks: 8,
+    goals: ['提升运动强度', '增强心肺功能', '改善运动表现'],
+    exercises: [
+      { id: 'g3-e1', name: '标准俯卧撑', description: '标准平板位俯卧撑', duration: 8, sets: 3, reps: 8, restSeconds: 60, difficulty: 3, tips: ['身体保持直线', '核心收紧不塌腰'], category: 'strength' as const },
+      { id: 'g3-e2', name: '深蹲', description: '双脚与肩同宽，臀部后坐下蹲至大腿平行地面', duration: 10, sets: 3, reps: 12, restSeconds: 60, difficulty: 3, tips: ['膝盖对准脚尖方向', '重心在脚后跟'], category: 'strength' as const },
+      { id: 'g3-e3', name: '慢跑', description: '轻松节奏的持续慢跑', duration: 25, sets: 1, reps: 1, restSeconds: 0, difficulty: 3, tips: ['注意呼吸节奏', '循序渐进增量'], category: 'cardio' as const },
+    ],
+    weeklyFrequency: 4,
+    color: 'text-violet-600',
+    gradient: 'from-violet-400 to-purple-500',
+  },
+  {
+    id: 'phase4' as RehabPhaseType,
+    name: '第四阶段 · 综合体能',
+    description: '16周以后，全面提升运动能力',
+    durationWeeks: 12,
+    goals: ['全面提升体能', '掌握多种训练方式', '建立终身运动习惯'],
+    exercises: [
+      { id: 'g4-e1', name: '波比跳', description: '深蹲+俯卧撑+跳跃组合动作', duration: 10, sets: 3, reps: 6, restSeconds: 60, difficulty: 4, tips: ['每个动作做标准', '量力而行'], category: 'cardio' as const },
+      { id: 'g4-e2', name: '单腿罗马尼亚硬拉', description: '单腿站立，另一腿后伸，身体前倾', duration: 8, sets: 3, reps: 8, restSeconds: 45, difficulty: 4, tips: ['保持髋部水平', '支撑腿微屈膝'], category: 'strength' as const },
+      { id: 'g4-e3', name: '跑步', description: '中等强度持续跑步', duration: 30, sets: 1, reps: 1, restSeconds: 0, difficulty: 3, tips: ['注意跑姿', '做好热身和拉伸'], category: 'cardio' as const },
+      { id: 'g4-e4', name: '全身拉伸放松', description: '运动后全身主要肌群静态拉伸', duration: 10, sets: 1, reps: 1, restSeconds: 0, difficulty: 1, tips: ['每个动作保持20-30秒', '不要过度拉伸'], category: 'cool-down' as const },
+    ],
+    weeklyFrequency: 4,
+    color: 'text-fuchsia-600',
+    gradient: 'from-fuchsia-400 to-pink-500',
+  },
+];
+
+const buildCustomPhases = (): RehabPhase[] => [
+  {
+    id: 'phase1' as RehabPhaseType,
+    name: '第一阶段 · 自定义基础',
+    description: '根据个人状况定制的入门阶段',
+    durationWeeks: 4,
+    goals: ['评估个人身体状况', '设定训练基线', '循序渐进开始训练'],
+    exercises: [
+      { id: 'cu1-e1', name: '腹式呼吸', description: '平躺，深吸气使腹部隆起，呼气时收紧腹部', duration: 5, sets: 3, reps: 10, restSeconds: 30, difficulty: 1, tips: ['呼吸缓慢均匀', '注意力集中'], category: 'breathing' as const },
+      { id: 'cu1-e2', name: '关节活动度训练', description: '全身主要关节的主动活动', duration: 8, sets: 1, reps: 1, restSeconds: 0, difficulty: 1, tips: ['缓慢控制', '无痛范围内活动'], category: 'flexibility' as const },
+      { id: 'cu1-e3', name: '轻度步行', description: '平地轻松步行', duration: 15, sets: 1, reps: 1, restSeconds: 0, difficulty: 1, tips: ['保持舒适 pace', '逐步增量'], category: 'cardio' as const },
+    ],
+    weeklyFrequency: 3,
+    color: 'text-sky-600',
+    gradient: 'from-sky-400 to-cyan-500',
+  },
+  {
+    id: 'phase2' as RehabPhaseType,
+    name: '第二阶段 · 自定义进阶',
+    description: '根据恢复情况逐步增加训练强度',
+    durationWeeks: 6,
+    goals: ['增加训练强度', '改善肌肉力量', '提升活动能力'],
+    exercises: [
+      { id: 'cu2-e1', name: '改良俯卧撑', description: '跪姿或靠墙俯卧撑', duration: 5, sets: 3, reps: 8, restSeconds: 45, difficulty: 2, tips: ['选择适合的难度', '保持核心稳定'], category: 'strength' as const },
+      { id: 'cu2-e2', name: '弹力带划船', description: '坐姿使用弹力带做划船动作', duration: 8, sets: 3, reps: 10, restSeconds: 45, difficulty: 2, tips: ['肩胛骨先收缩', '感受背部发力'], category: 'strength' as const },
+      { id: 'cu2-e3', name: '瑜伽流', description: '简单的瑜伽流动序列', duration: 15, sets: 1, reps: 1, restSeconds: 0, difficulty: 2, tips: ['配合呼吸', '量力而行'], category: 'flexibility' as const },
+    ],
+    weeklyFrequency: 4,
+    color: 'text-teal-600',
+    gradient: 'from-teal-400 to-emerald-500',
+  },
+  {
+    id: 'phase3' as RehabPhaseType,
+    name: '第三阶段 · 自定义强化',
+    description: '针对性强化薄弱环节',
+    durationWeeks: 8,
+    goals: ['针对性强化', '功能改善', '体能提升'],
+    exercises: [
+      { id: 'cu3-e1', name: '力量训练组合', description: '上下肢交替力量训练', duration: 15, sets: 3, reps: 10, restSeconds: 60, difficulty: 3, tips: ['选择合适的重量', '保持动作标准'], category: 'strength' as const },
+      { id: 'cu3-e2', name: '有氧间歇', description: '低强度与中强度交替的有氧训练', duration: 20, sets: 1, reps: 1, restSeconds: 0, difficulty: 3, tips: ['控制心率', '注意恢复'], category: 'cardio' as const },
+    ],
+    weeklyFrequency: 4,
+    color: 'text-violet-600',
+    gradient: 'from-violet-400 to-purple-500',
+  },
+  {
+    id: 'phase4' as RehabPhaseType,
+    name: '第四阶段 · 自定义维持',
+    description: '长期训练与维护阶段',
+    durationWeeks: 12,
+    goals: ['维持训练成果', '持续改善', '建立长期习惯'],
+    exercises: [
+      { id: 'cu4-e1', name: '综合力量训练', description: '全身力量训练循环', duration: 20, sets: 3, reps: 12, restSeconds: 60, difficulty: 3, tips: ['注重动作质量', '逐步增加负荷'], category: 'strength' as const },
+      { id: 'cu4-e2', name: '有氧运动', description: '跑步、骑行或游泳等有氧运动', duration: 30, sets: 1, reps: 1, restSeconds: 0, difficulty: 3, tips: ['选择喜欢的运动', '保持规律'], category: 'cardio' as const },
+      { id: 'cu4-e3', name: '拉伸与放松', description: '运动后拉伸和筋膜放松', duration: 10, sets: 1, reps: 1, restSeconds: 0, difficulty: 1, tips: ['每个部位充分拉伸', '配合深呼吸'], category: 'cool-down' as const },
+    ],
+    weeklyFrequency: 3,
+    color: 'text-fuchsia-600',
+    gradient: 'from-fuchsia-400 to-pink-500',
+  },
+];
+
 const defaultRehabPlanId = generateId();
 const defaultRehabMilestones: RehabMilestone[] = [
   {
@@ -2546,6 +2798,11 @@ export const useAppStore = create<AppState>()(
       },
 
       getDefaultRehabPlan: (type: RehabPlan['type']) => {
+        const phasesBuilder = type === 'postpartum' ? buildDefaultRehabPhases :
+                              type === 'pelvic-floor' ? buildPelvicFloorPhases :
+                              type === 'core' ? buildCorePhases :
+                              type === 'general' ? buildGeneralPhases :
+                              buildCustomPhases;
         return {
           name: type === 'postpartum' ? '产后综合康复计划' :
                 type === 'pelvic-floor' ? '盆底肌专项康复' :
@@ -2553,7 +2810,7 @@ export const useAppStore = create<AppState>()(
                 type === 'general' ? '通用康复计划' : '自定义康复计划',
           type,
           startDate: new Date().toISOString().split('T')[0],
-          phases: buildDefaultRehabPhases(),
+          phases: phasesBuilder(),
           milestones: [],
         };
       },
