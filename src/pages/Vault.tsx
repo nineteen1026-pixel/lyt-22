@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Shield,
   Lock,
@@ -31,6 +30,12 @@ const emotionOptions = [
 ];
 
 const tagOptions = ['自我对话', '亲密关系', '身体感受', '压力释放', '成长感悟', '秘密心愿', '疗愈时刻', '深夜思绪'];
+
+const MIN_PIN_LENGTH = 4;
+const MAX_PIN_LENGTH = 6;
+
+const isValidPinLength = (pin: string) =>
+  /^\d+$/.test(pin) && pin.length >= MIN_PIN_LENGTH && pin.length <= MAX_PIN_LENGTH;
 
 export default function Vault() {
   const {
@@ -70,38 +75,42 @@ export default function Vault() {
   const needsSetup = !hasPin();
 
   const autoLockedRef = useRef(false);
+
+  const performLock = useCallback(() => {
+    if (autoLockedRef.current) return;
+    autoLockedRef.current = true;
+    useVaultStore.getState().lock();
+  }, []);
+
   useEffect(() => {
     autoLockedRef.current = false;
     return () => {
-      if (isUnlocked && !autoLockedRef.current) {
-        autoLockedRef.current = true;
-        useVaultStore.getState().lock();
+      if (isUnlocked) {
+        performLock();
       }
     };
-  }, [isUnlocked]);
+  }, [isUnlocked, performLock]);
 
   useEffect(() => {
     const onPageHide = () => {
-      if (isUnlocked) {
-        autoLockedRef.current = true;
-        useVaultStore.getState().lock();
+      if (isUnlocked) performLock();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && isUnlocked) {
+        performLock();
       }
     };
     window.addEventListener('pagehide', onPageHide);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden' && isUnlocked) {
-        autoLockedRef.current = true;
-        useVaultStore.getState().lock();
-      }
-    });
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [isUnlocked]);
+  }, [isUnlocked, performLock]);
 
   const handlePinDigit = useCallback((digit: string) => {
     setPinInput((prev) => {
-      if (prev.length >= 6) return prev;
+      if (prev.length >= MAX_PIN_LENGTH) return prev;
       return prev + digit;
     });
   }, []);
@@ -110,41 +119,43 @@ export default function Vault() {
     setPinInput((prev) => prev.slice(0, -1));
   }, []);
 
-  useEffect(() => {
-    if (needsSetup || isUnlocked) return;
-    if (pinInput.length < 4) return;
-
-    let timer: ReturnType<typeof setTimeout>;
-    const verify = async () => {
-      setIsUnlocking(true);
-      const ok = await unlock(pinInput);
-      if (ok) {
+  const handleUnlock = useCallback(async () => {
+    if (!isValidPinLength(pinInput)) return;
+    setIsUnlocking(true);
+    const ok = await unlock(pinInput);
+    if (ok) {
+      setPinInput('');
+      setPinError('');
+    } else {
+      setPinError('PIN 码错误，请重试');
+      setTimeout(() => {
         setPinInput('');
         setPinError('');
-      } else {
-        setPinError('PIN 码错误，请重试');
-        timer = setTimeout(() => {
-          setPinInput('');
-          setPinError('');
-        }, 1500);
-      }
-      setIsUnlocking(false);
-    };
+      }, 1500);
+    }
+    setIsUnlocking(false);
+  }, [pinInput, unlock]);
 
-    timer = setTimeout(verify, 300);
-    return () => clearTimeout(timer);
-  }, [pinInput, needsSetup, isUnlocked, unlock]);
+  useEffect(() => {
+    if (needsSetup || isUnlocked) return;
+    if (pinInput.length !== MAX_PIN_LENGTH) return;
+    handleUnlock();
+  }, [pinInput, needsSetup, isUnlocked, handleUnlock]);
 
-  const handleSetupPin = async () => {
+  const handleSetupPin = useCallback(async () => {
     if (pinStep === 'set') {
-      if (pinInput.length < 4) {
-        setPinError('PIN 码至少4位');
+      if (!isValidPinLength(pinInput)) {
+        setPinError('PIN 码必须为4-6位数字');
         return;
       }
       setConfirmPin(pinInput);
       setPinInput('');
       setPinStep('confirm');
       setPinError('');
+      return;
+    }
+    if (!isValidPinLength(pinInput)) {
+      setPinError('PIN 码必须为4-6位数字');
       return;
     }
     if (pinInput !== confirmPin) {
@@ -157,7 +168,13 @@ export default function Vault() {
     setPinInput('');
     setConfirmPin('');
     setPinStep('set');
-  };
+  }, [pinInput, pinStep, confirmPin, setupPin]);
+
+  useEffect(() => {
+    if (!needsSetup) return;
+    if (pinInput.length !== MAX_PIN_LENGTH) return;
+    handleSetupPin();
+  }, [pinInput, needsSetup, handleSetupPin]);
 
   const handleSaveEntry = async () => {
     if (!content.trim()) return;
@@ -184,12 +201,16 @@ export default function Vault() {
   };
 
   const handleChangePin = async () => {
-    if (newPin !== newPinConfirm) {
-      setPinChangeError('两次输入不一致');
+    if (!isValidPinLength(oldPin)) {
+      setPinChangeError('原 PIN 码必须为4-6位数字');
       return;
     }
-    if (newPin.length < 4) {
-      setPinChangeError('PIN 码至少4位');
+    if (!isValidPinLength(newPin)) {
+      setPinChangeError('新 PIN 码必须为4-6位数字');
+      return;
+    }
+    if (newPin !== newPinConfirm) {
+      setPinChangeError('两次输入不一致');
       return;
     }
     const ok = await changePin(oldPin, newPin);
@@ -208,7 +229,7 @@ export default function Vault() {
     }
   };
 
-  const renderPinPad = (onSubmit?: () => void) => (
+  const renderPinPad = (onSubmit?: () => void, submitLabel = '确认') => (
     <div className="w-full max-w-xs mx-auto">
       <div className="flex justify-center gap-3 mb-8">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -255,12 +276,12 @@ export default function Vault() {
           }
         )}
       </div>
-      {onSubmit && pinInput.length >= 4 && (
+      {onSubmit && pinInput.length >= MIN_PIN_LENGTH && pinInput.length < MAX_PIN_LENGTH && (
         <button
           onClick={onSubmit}
           className="w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-medium shadow-lg hover:shadow-xl transition-all"
         >
-          确认
+          {submitLabel}
         </button>
       )}
     </div>
@@ -289,16 +310,7 @@ export default function Vault() {
           <p className="text-sm text-gray-600 mb-4">
             {pinStep === 'set' ? '请输入 PIN 码' : '请再次确认 PIN 码'}
           </p>
-          {renderPinPad(handleSetupPin)}
-
-          {pinInput.length >= 4 && (
-            <button
-              onClick={handleSetupPin}
-              className="mt-4 px-8 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-medium shadow-lg hover:shadow-xl transition-all"
-            >
-              {pinStep === 'set' ? '下一步' : '确认设置'}
-            </button>
-          )}
+          {renderPinPad(handleSetupPin, pinStep === 'set' ? '下一步' : '确认设置')}
         </div>
       </div>
     );
@@ -325,7 +337,7 @@ export default function Vault() {
           {isUnlocking && (
             <p className="text-sm text-violet-500 mb-4 animate-pulse">验证中...</p>
           )}
-          {renderPinPad()}
+          {renderPinPad(handleUnlock)}
         </div>
       </div>
     );
