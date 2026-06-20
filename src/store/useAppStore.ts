@@ -48,8 +48,19 @@ import type {
   ConceptionProbability,
   VisitRecord,
   TestReport,
+  TemperatureRecord,
+  TemperatureAnomalyAlert,
+  BluetoothDeviceInfo,
+  TemperatureStatistics,
 } from '@/types';
 import { useNutritionStore } from '@/store/useNutritionStore';
+import {
+  generateMockTemperatureRecords,
+  detectTemperatureAnomalies as detectAnomalies,
+  calculateTemperatureStatistics,
+  generateTemperatureTrend,
+  mergeRecords,
+} from '@/services/temperatureImport';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -1343,6 +1354,22 @@ const mockRehabCheckins: RehabCheckin[] = [
   },
 ];
 
+const mockTemperatureRecords: TemperatureRecord[] = generateMockTemperatureRecords(30);
+
+const mockTemperatureAlerts: TemperatureAnomalyAlert[] = [];
+
+const mockBluetoothDevices: BluetoothDeviceInfo[] = [
+  {
+    id: 'bt-001',
+    name: 'MCH智能体温计',
+    macAddress: 'AA:BB:CC:DD:EE:01',
+    brand: 'MCH健康',
+    model: 'T1',
+    batteryLevel: 85,
+    lastConnected: new Date().toISOString().split('T')[0],
+  },
+];
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -1364,6 +1391,9 @@ export const useAppStore = create<AppState>()(
       medicationReminders: mockMedicationReminders,
       medicationRecords: mockMedicationRecords,
       painRecords: mockPainRecords,
+      temperatureRecords: mockTemperatureRecords,
+      temperatureAlerts: mockTemperatureAlerts,
+      bluetoothDevices: mockBluetoothDevices,
       familyMembers: mockFamilyMembers,
       shareCodes: mockShareCodes,
       rehabPlans: defaultRehabPlans,
@@ -3299,6 +3329,91 @@ export const useAppStore = create<AppState>()(
           (c) => c.id === visit.linkedPostpartumCheckupId
         );
       },
+
+      addTemperatureRecord: (record: Omit<TemperatureRecord, 'id'>) =>
+        set((state) => {
+          const newRecord = { ...record, id: generateId() };
+          const merged = mergeRecords(state.temperatureRecords, [newRecord]);
+          return { temperatureRecords: merged };
+        }),
+
+      addTemperatureRecords: (records: Omit<TemperatureRecord, 'id'>[]) => {
+        const newRecords = records.map((r) => ({ ...r, id: generateId() }));
+        let result: TemperatureRecord[] = [];
+        set((state) => {
+          const merged = mergeRecords(state.temperatureRecords, newRecords);
+          result = merged;
+          return { temperatureRecords: merged };
+        });
+        return result;
+      },
+
+      deleteTemperatureRecord: (id: string) =>
+        set((state) => ({
+          temperatureRecords: state.temperatureRecords.filter((r) => r.id !== id),
+        })),
+
+      updateTemperatureRecord: (id: string, data: Partial<TemperatureRecord>) =>
+        set((state) => ({
+          temperatureRecords: state.temperatureRecords.map((r) =>
+            r.id === id ? { ...r, ...data } : r
+          ),
+        })),
+
+      getTemperatureRecordsByDateRange: (startDate: string, endDate: string) => {
+        const { temperatureRecords } = get();
+        return temperatureRecords.filter(
+          (r) => r.date >= startDate && r.date <= endDate
+        ).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+      },
+
+      getLatestTemperature: (): TemperatureRecord | undefined => {
+        const { temperatureRecords } = get();
+        if (temperatureRecords.length === 0) return undefined;
+        return [...temperatureRecords].sort(
+          (a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)
+        )[0];
+      },
+
+      getTemperatureStatistics: (): TemperatureStatistics => {
+        const { temperatureRecords } = get();
+        return calculateTemperatureStatistics(temperatureRecords);
+      },
+
+      getTemperatureTrend: (days: number = 30) => {
+        const { temperatureRecords } = get();
+        return generateTemperatureTrend(temperatureRecords, days);
+      },
+
+      detectTemperatureAnomalies: (records?: TemperatureRecord[]): TemperatureAnomalyAlert[] => {
+        const { temperatureRecords } = get();
+        const targetRecords = records || temperatureRecords;
+        return detectAnomalies(targetRecords);
+      },
+
+      acknowledgeTemperatureAlert: (alertId: string) =>
+        set((state) => ({
+          temperatureAlerts: state.temperatureAlerts.map((a) =>
+            a.id === alertId ? { ...a, acknowledged: true } : a
+          ),
+        })),
+
+      addBluetoothDevice: (device: Omit<BluetoothDeviceInfo, 'id'>) =>
+        set((state) => ({
+          bluetoothDevices: [...state.bluetoothDevices, { ...device, id: generateId() }],
+        })),
+
+      removeBluetoothDevice: (deviceId: string) =>
+        set((state) => ({
+          bluetoothDevices: state.bluetoothDevices.filter((d) => d.id !== deviceId),
+        })),
+
+      updateBluetoothDevice: (deviceId: string, data: Partial<BluetoothDeviceInfo>) =>
+        set((state) => ({
+          bluetoothDevices: state.bluetoothDevices.map((d) =>
+            d.id === deviceId ? { ...d, ...data } : d
+          ),
+        })),
     }),
     {
       name: 'her-cycle-storage',
@@ -3321,6 +3436,9 @@ export const useAppStore = create<AppState>()(
         medicationReminders: state.medicationReminders,
         medicationRecords: state.medicationRecords,
         painRecords: state.painRecords,
+        temperatureRecords: state.temperatureRecords,
+        temperatureAlerts: state.temperatureAlerts,
+        bluetoothDevices: state.bluetoothDevices,
         familyMembers: state.familyMembers,
         shareCodes: state.shareCodes,
         rehabPlans: state.rehabPlans,

@@ -9,6 +9,8 @@ import {
   X,
   CalendarDays,
   ArrowRight,
+  Thermometer,
+  Upload,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
@@ -16,11 +18,14 @@ import PelvicFloorTraining from '@/components/postpartum/PelvicFloorTraining';
 import LochiaTracker from '@/components/postpartum/LochiaTracker';
 import BreastfeedingDiary from '@/components/postpartum/BreastfeedingDiary';
 import CheckupReminder from '@/components/postpartum/CheckupReminder';
+import TemperatureImport from '@/components/temperature/TemperatureImport';
+import TemperatureChart from '@/components/temperature/TemperatureChart';
 
-type TabKey = 'overview' | 'pelvic' | 'lochia' | 'feeding' | 'checkup';
+type TabKey = 'overview' | 'temperature' | 'pelvic' | 'lochia' | 'feeding' | 'checkup';
 
 const tabs: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
   { key: 'overview', label: '概览', icon: CalendarDays, color: 'from-fuchsia-400 via-pink-400 to-rose-400' },
+  { key: 'temperature', label: '体温管理', icon: Thermometer, color: 'from-rose-400 to-pink-500' },
   { key: 'pelvic', label: '盆底训练', icon: Dumbbell, color: 'from-teal-400 to-cyan-500' },
   { key: 'lochia', label: '恶露追踪', icon: Droplets, color: 'from-rose-400 to-pink-500' },
   { key: 'feeding', label: '哺乳日记', icon: Baby, color: 'from-fuchsia-400 to-pink-500' },
@@ -65,10 +70,13 @@ export default function Postpartum() {
     breastfeedingRecords,
     postpartumCheckups,
     addPostpartumCheckup,
+    temperatureRecords,
+    getTemperatureStatistics,
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState(postpartumData.deliveryDate);
   const [deliveryType, setDeliveryType] = useState(postpartumData.deliveryType);
   const [autoGenerateCheckups, setAutoGenerateCheckups] = useState(true);
@@ -147,6 +155,16 @@ export default function Postpartum() {
 
   const moduleCards: { key: TabKey; label: string; desc: string; count: number; unit: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string }[] = [
     {
+      key: 'temperature',
+      label: '体温管理',
+      desc: '设备导入、曲线分析',
+      count: temperatureRecords.length,
+      unit: '条记录',
+      icon: Thermometer,
+      color: 'text-rose-600',
+      bg: 'from-rose-50 to-pink-50',
+    },
+    {
       key: 'pelvic',
       label: '盆底训练打卡',
       desc: '凯格尔运动等恢复训练',
@@ -190,6 +208,30 @@ export default function Postpartum() {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'temperature':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Thermometer className="w-6 h-6 text-rose-500" />
+                  体温管理
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  导入设备数据，监测体温变化与排卵情况
+                </p>
+              </div>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-full text-sm font-medium shadow-md hover:shadow-lg transition-all"
+              >
+                <Upload className="w-4 h-4" />
+                导入数据
+              </button>
+            </div>
+            <TemperatureChart />
+          </div>
+        );
       case 'pelvic':
         return <PelvicFloorTraining />;
       case 'lochia':
@@ -528,6 +570,28 @@ export default function Postpartum() {
                   保存设置
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl max-h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Thermometer className="w-5 h-5 text-rose-500" />
+                体温数据导入
+              </h3>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <TemperatureImport onClose={() => setShowImportModal(false)} />
             </div>
           </div>
         </div>

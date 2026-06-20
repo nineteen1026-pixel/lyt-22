@@ -868,6 +868,81 @@ export interface TestReport {
   createdAt: string;
 }
 
+export type TemperatureSource = 'manual' | 'csv' | 'bluetooth' | 'device';
+export type TemperatureAnomalyType = 'high_fever' | 'low_temp' | 'sudden_rise' | 'sudden_drop' | 'irregular_pattern' | 'luteal_phase_short' | 'no_temp_shift';
+export type MeasurementMethod = 'oral' | 'axillary' | 'tympanic' | 'rectal' | 'forehead';
+
+export interface TemperatureRecord {
+  id: string;
+  date: string;
+  time: string;
+  temperature: number;
+  source: TemperatureSource;
+  method?: MeasurementMethod;
+  deviceId?: string;
+  deviceName?: string;
+  notes?: string;
+  cyclePhase?: CyclePhase;
+  basalTemp?: boolean;
+}
+
+export interface TemperatureAnomalyAlert {
+  id: string;
+  type: TemperatureAnomalyType;
+  typeName: string;
+  severity: 'low' | 'medium' | 'high';
+  date: string;
+  temperature?: number;
+  description: string;
+  suggestion?: string;
+  acknowledged: boolean;
+}
+
+export interface BluetoothDeviceInfo {
+  id: string;
+  name: string;
+  macAddress?: string;
+  brand?: string;
+  model?: string;
+  lastConnected?: string;
+  batteryLevel?: number;
+}
+
+export interface CSVColumnMapping {
+  dateColumn?: string;
+  timeColumn?: string;
+  tempColumn: string;
+  dateFormat?: string;
+  hasHeader?: boolean;
+  encoding?: 'utf-8' | 'gbk' | 'gb2312';
+  separator?: ',' | ';' | '\t';
+}
+
+export interface TemperatureImportResult {
+  success: boolean;
+  totalRecords: number;
+  importedRecords: number;
+  skippedRecords: number;
+  errorRecords: { line: number; reason: string; rawData?: string }[];
+  newRecords: TemperatureRecord[];
+}
+
+export interface TemperatureStatistics {
+  avgTemperature: number;
+  minTemperature: number;
+  maxTemperature: number;
+  latestTemperature?: number;
+  latestTemperatureDate?: string;
+  tempShiftDetected: boolean;
+  tempShiftDate?: string;
+  follicularPhaseAvg?: number;
+  lutealPhaseAvg?: number;
+  tempDiff?: number;
+  anomalyCount: number;
+  recordCount: number;
+  continuousDays: number;
+}
+
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
@@ -887,6 +962,9 @@ export interface AppState {
   medicationReminders: MedicationReminder[];
   medicationRecords: MedicationRecord[];
   painRecords: PainRecord[];
+  temperatureRecords: TemperatureRecord[];
+  temperatureAlerts: TemperatureAnomalyAlert[];
+  bluetoothDevices: BluetoothDeviceInfo[];
   familyMembers: FamilyMember[];
   shareCodes: ShareCode[];
   rehabPlans: RehabPlan[];
@@ -978,4 +1056,17 @@ export interface AppState {
   getLinkedPainRecords: (visitId: string) => PainRecord[];
   getLinkedPrenatalCheckup: (visitId: string) => PrenatalCheckup | undefined;
   getLinkedPostpartumCheckup: (visitId: string) => PostpartumCheckup | undefined;
+  addTemperatureRecord: (record: Omit<TemperatureRecord, 'id'>) => void;
+  addTemperatureRecords: (records: Omit<TemperatureRecord, 'id'>[]) => TemperatureRecord[];
+  deleteTemperatureRecord: (id: string) => void;
+  updateTemperatureRecord: (id: string, data: Partial<TemperatureRecord>) => void;
+  getTemperatureRecordsByDateRange: (startDate: string, endDate: string) => TemperatureRecord[];
+  getLatestTemperature: () => TemperatureRecord | undefined;
+  getTemperatureStatistics: () => TemperatureStatistics;
+  getTemperatureTrend: (days?: number) => { date: string; temperature?: number; phase?: CyclePhase }[];
+  detectTemperatureAnomalies: (records?: TemperatureRecord[]) => TemperatureAnomalyAlert[];
+  acknowledgeTemperatureAlert: (alertId: string) => void;
+  addBluetoothDevice: (device: Omit<BluetoothDeviceInfo, 'id'>) => void;
+  removeBluetoothDevice: (deviceId: string) => void;
+  updateBluetoothDevice: (deviceId: string, data: Partial<BluetoothDeviceInfo>) => void;
 }
