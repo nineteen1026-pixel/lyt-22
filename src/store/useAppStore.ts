@@ -375,16 +375,17 @@ const generateShareCodeString = () => {
 const mockOvertimeRecords: OvertimeRecord[] = (() => {
   const records: OvertimeRecord[] = [];
   const today = new Date();
-  const cycleStart = new Date(today);
-  cycleStart.setDate(today.getDate() - 3);
+  const cycleStartRef = new Date(lastPeriod);
+  const cycleLen = initialCycleData.cycleLength;
+  const periodLen = initialCycleData.periodLength;
 
   for (let i = 29; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
 
-    const dayInCycle = Math.floor((date.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
-    const cycleDay = ((dayInCycle % 28) + 28) % 28;
+    const dayInCycle = Math.floor((date.getTime() - cycleStartRef.getTime()) / (1000 * 60 * 60 * 24));
+    const cycleDay = ((dayInCycle % cycleLen) + cycleLen) % cycleLen;
 
     let cyclePhase: OvertimeRecord['cyclePhase'] = 'follicular';
     let isPeriodDay = false;
@@ -393,7 +394,7 @@ const mockOvertimeRecords: OvertimeRecord[] = (() => {
     let baseStress = 3;
     let baseSleep = 7.5;
 
-    if (cycleDay >= 0 && cycleDay < 5) {
+    if (cycleDay >= 0 && cycleDay < periodLen) {
       cyclePhase = 'period';
       isPeriodDay = true;
       if (cycleDay <= 2) {
@@ -401,18 +402,18 @@ const mockOvertimeRecords: OvertimeRecord[] = (() => {
       } else {
         dysmenorrheaLevel = Math.floor(Math.random() * 4);
       }
-    } else if (cycleDay >= 5 && cycleDay < 12) {
+    } else if (cycleDay >= periodLen && cycleDay < periodLen + 7) {
       cyclePhase = 'follicular';
       baseStress = 3 + Math.random() * 2;
       baseSleep = 7 + Math.random() * 1;
-    } else if (cycleDay >= 12 && cycleDay < 16) {
+    } else if (cycleDay >= periodLen + 7 && cycleDay < periodLen + 11) {
       cyclePhase = 'ovulation';
       baseStress = 4 + Math.random() * 2;
     } else {
       cyclePhase = 'luteal';
       baseStress = 5 + Math.random() * 2;
       baseSleep = 6 + Math.random() * 1.5;
-      if (cycleDay >= 24) {
+      if (cycleDay >= cycleLen - 4) {
         dysmenorrheaLevel = Math.floor(Math.random() * 4);
       }
     }
@@ -427,7 +428,7 @@ const mockOvertimeRecords: OvertimeRecord[] = (() => {
       let sleepHours = baseSleep;
       let periodImpact: string | undefined;
 
-      if (cycleDay <= 2 && isPeriodDay) {
+      if (cycleDay <= Math.min(2, periodLen - 1) && isPeriodDay) {
         const extraStress = Math.random() > 0.5 ? Math.floor(1 + Math.random() * 3) : 0;
         hours = Math.floor(1 + Math.random() * 4);
         stressLevel = Math.min(10, Math.floor(baseStress + extraStress + (hours > 2 ? 2 : 1)));
@@ -439,7 +440,7 @@ const mockOvertimeRecords: OvertimeRecord[] = (() => {
         } else if (hours >= 2) {
           periodImpact = '经期加班，腹部不适加剧';
         }
-      } else if (cyclePhase === 'luteal' && cycleDay >= 22) {
+      } else if (cyclePhase === 'luteal' && cycleDay >= cycleLen - 6) {
         hours = Math.floor(1 + Math.random() * 5);
         stressLevel = Math.min(10, Math.floor(baseStress + (hours > 3 ? 2 : 1)));
         sleepHours = Math.max(4.5, baseSleep - (hours > 2 ? 1 : 0.3));

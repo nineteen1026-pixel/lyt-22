@@ -56,7 +56,7 @@ const painLevelLabels = [
 ];
 
 export default function CareerPage() {
-  const { overtimeRecords, addOvertimeRecord } = useAppStore();
+  const { overtimeRecords, addOvertimeRecord, getCyclePhaseForDate } = useAppStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<AnalysisTab>('trend');
   const [newRecord, setNewRecord] = useState<Partial<OvertimeRecord>>({
@@ -82,12 +82,12 @@ export default function CareerPage() {
 
   const periodOvertimeRecords = overtimeRecords.filter((r) => r.isPeriodDay);
   const avgPeriodPain = periodOvertimeRecords.length > 0
-    ? (periodOvertimeRecords.reduce((sum, r) => sum + (r.dysmenorrheaLevel || 0), 0) / periodOvertimeRecords.length).toFixed(1)
+    ? (periodOvertimeRecords.reduce((sum, r) => sum + (r.dysmenorrheaLevel ?? 0), 0) / periodOvertimeRecords.length).toFixed(1)
     : 0;
 
   const highStressCount = overtimeRecords.filter((r) => r.stressLevel >= 7).length;
   const highStressWithPain = overtimeRecords.filter(
-    (r) => r.stressLevel >= 7 && (r.dysmenorrheaLevel || 0) >= 4
+    (r) => r.stressLevel >= 7 && (r.dysmenorrheaLevel ?? 0) >= 4
   ).length;
 
   const trendChartData = useMemo(() => {
@@ -103,7 +103,7 @@ export default function CareerPage() {
     const last14 = sortedRecords.slice(-14);
     return last14.map((r) => ({
       label: r.date,
-      value: r.dysmenorrheaLevel || 0,
+      value: r.dysmenorrheaLevel ?? 0,
       value2: r.stressLevel,
     }));
   }, [sortedRecords]);
@@ -121,8 +121,9 @@ export default function CareerPage() {
       phases[phase].count += 1;
       phases[phase].totalHours += r.hours;
       phases[phase].totalStress += r.stressLevel;
-      if (r.dysmenorrheaLevel) {
-        phases[phase].totalPain += r.dysmenorrheaLevel;
+      const pain = r.dysmenorrheaLevel ?? 0;
+      phases[phase].totalPain += pain;
+      if (pain > 0) {
         phases[phase].painDays += 1;
       }
     });
@@ -132,7 +133,8 @@ export default function CareerPage() {
       count: val.count,
       avgHours: val.count > 0 ? Number((val.totalHours / val.count).toFixed(1)) : 0,
       avgStress: val.count > 0 ? Number((val.totalStress / val.count).toFixed(1)) : 0,
-      avgPain: val.painDays > 0 ? Number((val.totalPain / val.painDays).toFixed(1)) : 0,
+      avgPain: val.count > 0 ? Number((val.totalPain / val.count).toFixed(1)) : 0,
+      painDays: val.painDays,
       ...cyclePhaseLabels[key],
     }));
   }, [overtimeRecords]);
@@ -163,29 +165,33 @@ export default function CareerPage() {
 
   const correlationBuckets = useMemo(() => {
     const buckets = {
-      lowStressLowHours: { pain: 0, count: 0 },
-      lowStressHighHours: { pain: 0, count: 0 },
-      highStressLowHours: { pain: 0, count: 0 },
-      highStressHighHours: { pain: 0, count: 0 },
+      lowStressLowHours: { pain: 0, count: 0, periodCount: 0 },
+      lowStressHighHours: { pain: 0, count: 0, periodCount: 0 },
+      highStressLowHours: { pain: 0, count: 0, periodCount: 0 },
+      highStressHighHours: { pain: 0, count: 0, periodCount: 0 },
     };
 
     overtimeRecords.forEach((r) => {
       const isHighStress = r.stressLevel >= 6;
       const isHighHours = r.hours >= 3;
-      const pain = r.dysmenorrheaLevel || 0;
+      const pain = r.dysmenorrheaLevel ?? 0;
 
       if (!isHighStress && !isHighHours) {
         buckets.lowStressLowHours.count += 1;
         buckets.lowStressLowHours.pain += pain;
+        if (r.isPeriodDay) buckets.lowStressLowHours.periodCount += 1;
       } else if (!isHighStress && isHighHours) {
         buckets.lowStressHighHours.count += 1;
         buckets.lowStressHighHours.pain += pain;
+        if (r.isPeriodDay) buckets.lowStressHighHours.periodCount += 1;
       } else if (isHighStress && !isHighHours) {
         buckets.highStressLowHours.count += 1;
         buckets.highStressLowHours.pain += pain;
+        if (r.isPeriodDay) buckets.highStressLowHours.periodCount += 1;
       } else {
         buckets.highStressHighHours.count += 1;
         buckets.highStressHighHours.pain += pain;
+        if (r.isPeriodDay) buckets.highStressHighHours.periodCount += 1;
       }
     });
 
@@ -193,6 +199,7 @@ export default function CareerPage() {
       key,
       avgPain: val.count > 0 ? Number((val.pain / val.count).toFixed(1)) : 0,
       count: val.count,
+      periodCount: val.periodCount,
     }));
   }, [overtimeRecords]);
 
@@ -226,7 +233,7 @@ export default function CareerPage() {
     }[] = [];
 
     const highStressPainRecords = overtimeRecords.filter(
-      (r) => r.stressLevel >= 7 && (r.dysmenorrheaLevel || 0) >= 5
+      (r) => r.stressLevel >= 7 && (r.dysmenorrheaLevel ?? 0) >= 5
     );
     if (highStressPainRecords.length >= 2) {
       insights.push({
@@ -306,17 +313,12 @@ export default function CareerPage() {
 
   const handleAddRecord = () => {
     if (newRecord.date && newRecord.hours !== undefined) {
-      let cyclePhase: OvertimeRecord['cyclePhase'] = 'follicular';
-      let isPeriodDay = false;
-      const date = new Date(newRecord.date);
-      const cycleStart = new Date();
-      cycleStart.setDate(cycleStart.getDate() - 3);
-      const dayInCycle = Math.floor((date.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
-      const cycleDay = ((dayInCycle % 28) + 28) % 28;
-      if (cycleDay >= 0 && cycleDay < 5) { cyclePhase = 'period'; isPeriodDay = true; }
-      else if (cycleDay >= 5 && cycleDay < 12) cyclePhase = 'follicular';
-      else if (cycleDay >= 12 && cycleDay < 16) cyclePhase = 'ovulation';
-      else cyclePhase = 'luteal';
+      const phaseInfo = getCyclePhaseForDate(newRecord.date);
+      const cyclePhase: OvertimeRecord['cyclePhase'] =
+        phaseInfo.phase === 'period' ? 'period' :
+        phaseInfo.phase === 'ovulation' ? 'ovulation' :
+        phaseInfo.phase === 'luteal' ? 'luteal' : 'follicular';
+      const isPeriodDay = phaseInfo.phase === 'period';
 
       addOvertimeRecord({
         id: generateId(),
@@ -325,7 +327,7 @@ export default function CareerPage() {
         stressLevel: newRecord.stressLevel || 5,
         sleepHours: newRecord.sleepHours || 7,
         periodImpact: newRecord.periodImpact,
-        dysmenorrheaLevel: newRecord.dysmenorrheaLevel || undefined,
+        dysmenorrheaLevel: newRecord.dysmenorrheaLevel ?? undefined,
         isPeriodDay,
         cyclePhase,
       } as OvertimeRecord);
@@ -599,7 +601,7 @@ export default function CareerPage() {
                       </div>
                       <div>
                         <span className="text-gray-400">痛经</span>
-                        <p className="font-medium text-gray-700">{p.avgPain || '—'}/10</p>
+                        <p className="font-medium text-gray-700">{p.avgPain}/10{p.painDays > 0 ? ` (${p.painDays}次痛)` : ''}</p>
                       </div>
                     </div>
                   </div>
@@ -652,6 +654,12 @@ export default function CareerPage() {
                           <p className="text-xs text-gray-400">样本数</p>
                           <p className="text-xl font-bold text-gray-700">{bucket.count}</p>
                         </div>
+                        {bucket.periodCount > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-400">含经期</p>
+                            <p className="text-xl font-bold text-rose-500">{bucket.periodCount}</p>
+                          </div>
+                        )}
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-2">
                         <div
@@ -818,7 +826,7 @@ export default function CareerPage() {
               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
                 {overtimeRecords.map((record) => {
                   const stressInfo = getStressLabel(record.stressLevel);
-                  const painLevel = record.dysmenorrheaLevel || 0;
+                  const painLevel = record.dysmenorrheaLevel ?? 0;
                   const painInfo = getPainLabel(painLevel);
                   return (
                     <div
@@ -1031,10 +1039,10 @@ export default function CareerPage() {
 
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  痛经等级: {newRecord.dysmenorrheaLevel || 0}/10
-                  {newRecord.dysmenorrheaLevel && newRecord.dysmenorrheaLevel > 0 && (
-                    <span className="ml-2 text-xs font-normal" style={{ color: getPainLabel(newRecord.dysmenorrheaLevel).color }}>
-                      · {getPainLabel(newRecord.dysmenorrheaLevel).label}
+                  痛经等级: {newRecord.dysmenorrheaLevel ?? 0}/10
+                  {(newRecord.dysmenorrheaLevel ?? 0) > 0 && (
+                    <span className="ml-2 text-xs font-normal" style={{ color: getPainLabel(newRecord.dysmenorrheaLevel ?? 0).color }}>
+                      · {getPainLabel(newRecord.dysmenorrheaLevel ?? 0).label}
                     </span>
                   )}
                 </label>
@@ -1042,7 +1050,7 @@ export default function CareerPage() {
                   type="range"
                   min="0"
                   max="10"
-                  value={newRecord.dysmenorrheaLevel || 0}
+                  value={newRecord.dysmenorrheaLevel ?? 0}
                   onChange={(e) => setNewRecord({ ...newRecord, dysmenorrheaLevel: Number(e.target.value) })}
                   className="w-full accent-rose-500"
                 />
