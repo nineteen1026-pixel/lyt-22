@@ -372,23 +372,103 @@ const generateShareCodeString = () => {
   return code;
 };
 
-const mockOvertimeRecords: OvertimeRecord[] = [
-  {
-    id: generateId(),
-    date: '2024-01-15',
-    hours: 3,
-    stressLevel: 7,
-    sleepHours: 5,
-    periodImpact: '经期推迟2天',
-  },
-  {
-    id: generateId(),
-    date: '2024-01-20',
-    hours: 2,
-    stressLevel: 5,
-    sleepHours: 6,
-  },
-];
+const mockOvertimeRecords: OvertimeRecord[] = (() => {
+  const records: OvertimeRecord[] = [];
+  const today = new Date();
+  const cycleStart = new Date(today);
+  cycleStart.setDate(today.getDate() - 3);
+
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+
+    const dayInCycle = Math.floor((date.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
+    const cycleDay = ((dayInCycle % 28) + 28) % 28;
+
+    let cyclePhase: OvertimeRecord['cyclePhase'] = 'follicular';
+    let isPeriodDay = false;
+    let dysmenorrheaLevel = 0;
+    let baseHours = 0;
+    let baseStress = 3;
+    let baseSleep = 7.5;
+
+    if (cycleDay >= 0 && cycleDay < 5) {
+      cyclePhase = 'period';
+      isPeriodDay = true;
+      if (cycleDay <= 2) {
+        dysmenorrheaLevel = Math.floor(5 + Math.random() * 5);
+      } else {
+        dysmenorrheaLevel = Math.floor(Math.random() * 4);
+      }
+    } else if (cycleDay >= 5 && cycleDay < 12) {
+      cyclePhase = 'follicular';
+      baseStress = 3 + Math.random() * 2;
+      baseSleep = 7 + Math.random() * 1;
+    } else if (cycleDay >= 12 && cycleDay < 16) {
+      cyclePhase = 'ovulation';
+      baseStress = 4 + Math.random() * 2;
+    } else {
+      cyclePhase = 'luteal';
+      baseStress = 5 + Math.random() * 2;
+      baseSleep = 6 + Math.random() * 1.5;
+      if (cycleDay >= 24) {
+        dysmenorrheaLevel = Math.floor(Math.random() * 4);
+      }
+    }
+
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    const workDayOvertimeChance = isWeekend ? 0.15 : 0.55;
+    const shouldOvertime = Math.random() < workDayOvertimeChance;
+
+    if (shouldOvertime || i < 8) {
+      let hours = baseHours;
+      let stressLevel = baseStress;
+      let sleepHours = baseSleep;
+      let periodImpact: string | undefined;
+
+      if (cycleDay <= 2 && isPeriodDay) {
+        const extraStress = Math.random() > 0.5 ? Math.floor(1 + Math.random() * 3) : 0;
+        hours = Math.floor(1 + Math.random() * 4);
+        stressLevel = Math.min(10, Math.floor(baseStress + extraStress + (hours > 2 ? 2 : 1)));
+        sleepHours = Math.max(4, baseSleep - (hours > 2 ? 1.5 : 0.5) - (stressLevel > 6 ? 1 : 0));
+
+        if (hours >= 3 && stressLevel >= 7) {
+          dysmenorrheaLevel = Math.min(10, dysmenorrheaLevel + Math.floor(1 + Math.random() * 3));
+          periodImpact = '加班后痛经加重，痛感攀升明显';
+        } else if (hours >= 2) {
+          periodImpact = '经期加班，腹部不适加剧';
+        }
+      } else if (cyclePhase === 'luteal' && cycleDay >= 22) {
+        hours = Math.floor(1 + Math.random() * 5);
+        stressLevel = Math.min(10, Math.floor(baseStress + (hours > 3 ? 2 : 1)));
+        sleepHours = Math.max(4.5, baseSleep - (hours > 2 ? 1 : 0.3));
+        if (hours >= 3 && stressLevel >= 7) {
+          periodImpact = '经前期高强度加班，身心压力较大';
+          dysmenorrheaLevel = Math.min(10, dysmenorrheaLevel + 1);
+        }
+      } else {
+        hours = Math.max(1, Math.floor(1 + Math.random() * 4));
+        stressLevel = Math.min(10, Math.floor(baseStress + (hours > 3 ? 2 : 0) + Math.random()));
+        sleepHours = Math.max(5, baseSleep - (hours > 2 ? 0.8 : 0));
+      }
+
+      records.push({
+        id: generateId(),
+        date: dateStr,
+        hours,
+        stressLevel,
+        sleepHours: Number(sleepHours.toFixed(1)),
+        periodImpact,
+        dysmenorrheaLevel: dysmenorrheaLevel > 0 ? dysmenorrheaLevel : undefined,
+        isPeriodDay,
+        cyclePhase,
+      });
+    }
+  }
+
+  return records.sort((a, b) => b.date.localeCompare(a.date));
+})();
 
 const mockOvulationRecords: OvulationRecord[] = [
   {

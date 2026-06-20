@@ -67,6 +67,9 @@ export interface OvertimeRecord {
   stressLevel: number;
   sleepHours: number;
   periodImpact?: string;
+  dysmenorrheaLevel?: number;
+  isPeriodDay?: boolean;
+  cyclePhase?: 'period' | 'follicular' | 'ovulation' | 'luteal';
 }
 
 export interface OvulationRecord {
