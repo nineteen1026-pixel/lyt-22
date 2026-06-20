@@ -18,6 +18,7 @@ import {
   X,
   AlertOctagon,
   History,
+  Cross,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/useAppStore';
@@ -157,6 +158,7 @@ export default function ReliefPage() {
     painRecords,
     addPainRecord,
     getTodayPainLevel,
+    visitRecords,
   } = useAppStore();
 
   const [showPainModal, setShowPainModal] = useState(false);
@@ -320,6 +322,56 @@ export default function ReliefPage() {
               : `已设置 ${dysmenorrheaReminders.length} 项痛经用药，疼痛达到阈值时自动提醒。`}
           </p>
         </div>
+      </div>
+
+      <div className="card p-5 mb-8 bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-400 flex items-center justify-center">
+              <Cross className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-800">就医助手</h3>
+              <p className="text-xs text-gray-500">
+                记录痛经相关就诊 · 查看科室推荐 · 检查单管理
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/medical-assistant')}
+            className="flex items-center gap-1 px-4 py-2 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-full text-sm font-medium shadow-md hover:shadow-lg transition-all"
+          >
+            查看 <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
+        {visitRecords.filter(r => r.linkedPainRecordIds && r.linkedPainRecordIds.length > 0).length > 0 && (
+          <div className="mt-4 pt-4 border-t border-rose-100">
+            <p className="text-xs text-gray-500 mb-2">关联的就诊记录</p>
+            <div className="space-y-2">
+              {visitRecords
+                .filter(r => r.linkedPainRecordIds && r.linkedPainRecordIds.length > 0)
+                .slice(0, 2)
+                .map(record => {
+                  const linkedPainCount = record.linkedPainRecordIds?.length || 0;
+                  return (
+                    <div key={record.id} className="flex items-center justify-between p-2 rounded-lg bg-white/70">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {record.department}
+                          {record.diagnosis && (
+                            <span className="ml-2 text-xs text-rose-500">({record.diagnosis})</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {record.date} · {record.hospital} · 关联 {linkedPainCount} 条疼痛记录
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">

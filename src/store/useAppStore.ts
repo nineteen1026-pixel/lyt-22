@@ -206,9 +206,11 @@ const mockBreastfeedingRecords: BreastfeedingRecord[] = [
   },
 ];
 
+const ppCheckupId1 = generateId();
+const ppCheckupId2 = generateId();
 const defaultPostpartumCheckups: PostpartumCheckup[] = [
   {
-    id: generateId(),
+    id: ppCheckupId1,
     date: new Date(Date.now() + 28 * 86400000).toISOString().split('T')[0],
     type: '6week',
     typeName: '产后6周复查',
@@ -218,7 +220,7 @@ const defaultPostpartumCheckups: PostpartumCheckup[] = [
     notes: '盆底评估、子宫恢复检查',
   },
   {
-    id: generateId(),
+    id: ppCheckupId2,
     date: new Date(Date.now() + 76 * 86400000).toISOString().split('T')[0],
     type: '3month',
     typeName: '产后3个月复查',
@@ -324,16 +326,18 @@ const mockMedicationRecords: MedicationRecord[] = [
   },
 ];
 
+const painRecordId1 = generateId();
+const painRecordId2 = generateId();
 const mockPainRecords: PainRecord[] = [
   {
-    id: generateId(),
+    id: painRecordId1,
     date: new Date().toISOString().split('T')[0],
     time: '07:30',
     level: 6,
     symptoms: '下腹部绞痛、腰酸',
   },
   {
-    id: generateId(),
+    id: painRecordId2,
     date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
     time: '10:00',
     level: 4,
@@ -500,9 +504,12 @@ const mockOvulationRecords: OvulationRecord[] = [
 ];
 
 const todayDate = new Date();
+const prenatalCheckupId1 = generateId();
+const prenatalCheckupId2 = generateId();
+const prenatalCheckupId3 = generateId();
 const mockCheckups: PrenatalCheckup[] = [
   {
-    id: generateId(),
+    id: prenatalCheckupId1,
     date: new Date(todayDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     week: 12,
     type: 'NT检查',
@@ -511,7 +518,7 @@ const mockCheckups: PrenatalCheckup[] = [
     completed: false,
   },
   {
-    id: generateId(),
+    id: prenatalCheckupId2,
     date: new Date(todayDate.getTime() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     week: 16,
     type: '唐筛检查',
@@ -519,7 +526,7 @@ const mockCheckups: PrenatalCheckup[] = [
     completed: false,
   },
   {
-    id: generateId(),
+    id: prenatalCheckupId3,
     date: new Date(todayDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     week: 8,
     type: '首次产检',
@@ -1132,8 +1139,21 @@ const mockVisitRecords: VisitRecord[] = [
     diagnosis: '盆底肌功能障碍I度',
     prescription: '盆底康复训练，每日凯格尔运动3组',
     followUpDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-    linkedPainRecordIds: [],
+    linkedPostpartumCheckupId: ppCheckupId1,
+    linkedPainRecordIds: [painRecordId1, painRecordId2],
     notes: '产后恢复情况良好，需继续盆底训练',
+  },
+  {
+    id: generateId(),
+    date: new Date(todayDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    department: '产科',
+    hospital: '妇幼保健院',
+    doctor: '王医生',
+    chiefComplaint: '孕8周首次产检',
+    diagnosis: '宫内妊娠，胎心正常',
+    prescription: '叶酸补充，定期产检',
+    linkedPrenatalCheckupId: prenatalCheckupId3,
+    notes: '胎儿发育正常，已见胎心胎芽',
   },
   {
     id: generateId(),
@@ -1144,7 +1164,6 @@ const mockVisitRecords: VisitRecord[] = [
     chiefComplaint: '月经不规律、经前综合征加重',
     diagnosis: '经前期综合征',
     prescription: '维生素B6 50mg 每日1次，月见草油 1000mg 每日1次',
-    linkedPainRecordIds: [],
     notes: '建议记录情绪与周期变化',
   },
 ];
@@ -3269,6 +3288,15 @@ export const useAppStore = create<AppState>()(
         if (!visit?.linkedPrenatalCheckupId) return undefined;
         return prenatalCheckups.find(
           (c) => c.id === visit.linkedPrenatalCheckupId
+        );
+      },
+
+      getLinkedPostpartumCheckup: (visitId: string) => {
+        const { visitRecords, postpartumCheckups } = get();
+        const visit = visitRecords.find((r) => r.id === visitId);
+        if (!visit?.linkedPostpartumCheckupId) return undefined;
+        return postpartumCheckups.find(
+          (c) => c.id === visit.linkedPostpartumCheckupId
         );
       },
     }),

@@ -849,6 +849,7 @@ export interface VisitRecord {
   prescription?: string;
   followUpDate?: string;
   linkedPrenatalCheckupId?: string;
+  linkedPostpartumCheckupId?: string;
   linkedPainRecordIds?: string[];
   notes?: string;
 }
@@ -976,4 +977,5 @@ export interface AppState {
   getVisitRecordsByDate: (date: string) => VisitRecord[];
   getLinkedPainRecords: (visitId: string) => PainRecord[];
   getLinkedPrenatalCheckup: (visitId: string) => PrenatalCheckup | undefined;
+  getLinkedPostpartumCheckup: (visitId: string) => PostpartumCheckup | undefined;
 }

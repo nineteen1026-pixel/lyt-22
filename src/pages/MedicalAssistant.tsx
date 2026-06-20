@@ -35,6 +35,9 @@ export default function MedicalAssistant() {
     prenatalCheckups,
     postpartumCheckups,
     lifeStage,
+    getLinkedPostpartumCheckup,
+    getLinkedPrenatalCheckup,
+    getLinkedPainRecords,
   } = useAppStore();
 
   const navigate = useNavigate();
@@ -181,14 +184,17 @@ export default function MedicalAssistant() {
         <div className="card p-6 bg-gradient-to-br from-fuchsia-50 to-pink-50">
           <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
             <Link2 className="w-5 h-5 text-fuchsia-500" />
-            关联产检/复查
+            关联产检/产后复查
           </h3>
-          {(lifeStage === 'pregnancy' || lifeStage === 'pregnancy-prep') && upcomingPrenatalCheckups.length > 0 ? (
+          {(upcomingPrenatalCheckups.length > 0 || upcomingPostpartumCheckups.length > 0) ? (
             <div className="space-y-2">
               {upcomingPrenatalCheckups.map((c) => (
                 <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-white/70">
                   <div>
-                    <p className="text-sm font-medium text-gray-800">{c.type}</p>
+                    <p className="text-sm font-medium text-gray-800 flex items-center gap-2">
+                      {c.type}
+                      <span className="text-[10px] px-1.5 py-0.5 bg-fuchsia-100 text-fuchsia-600 rounded">产检</span>
+                    </p>
                     <p className="text-xs text-gray-500">{c.date} · 孕{c.week}周</p>
                   </div>
                   <span className="text-xs px-2 py-1 rounded-full bg-fuchsia-100 text-fuchsia-600">
@@ -196,13 +202,13 @@ export default function MedicalAssistant() {
                   </span>
                 </div>
               ))}
-            </div>
-          ) : lifeStage === 'postpartum' && upcomingPostpartumCheckups.length > 0 ? (
-            <div className="space-y-2">
               {upcomingPostpartumCheckups.map((c) => (
                 <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-white/70">
                   <div>
-                    <p className="text-sm font-medium text-gray-800">{c.typeName}</p>
+                    <p className="text-sm font-medium text-gray-800 flex items-center gap-2">
+                      {c.typeName}
+                      <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded">产后</span>
+                    </p>
                     <p className="text-xs text-gray-500">{c.date}</p>
                   </div>
                   <span className="text-xs px-2 py-1 rounded-full bg-fuchsia-100 text-fuchsia-600">
@@ -214,12 +220,20 @@ export default function MedicalAssistant() {
           ) : (
             <p className="text-sm text-gray-400 text-center py-4">暂无待查产检/复查</p>
           )}
-          <button
-            onClick={() => navigate(lifeStage === 'postpartum' ? '/postpartum' : '/pregnancy')}
-            className="mt-4 text-sm text-fuchsia-500 font-medium flex items-center gap-1 hover:gap-2 transition-all"
-          >
-            {lifeStage === 'postpartum' ? '前往产后恢复' : '前往孕期管理'} <ArrowRight className="w-3 h-3" />
-          </button>
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={() => navigate('/pregnancy')}
+              className="text-sm text-fuchsia-500 font-medium flex items-center gap-1 hover:gap-2 transition-all flex-1"
+            >
+              前往孕期 <ArrowRight className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => navigate('/postpartum')}
+              className="text-sm text-blue-500 font-medium flex items-center gap-1 hover:gap-2 transition-all flex-1"
+            >
+              前往产后 <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -238,28 +252,55 @@ export default function MedicalAssistant() {
             </button>
           </div>
           <div className="space-y-3">
-            {recentVisits.map((visit) => (
-              <div key={visit.id} className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">
-                    {visit.department}
-                    {visit.diagnosis && (
-                      <span className="ml-2 text-xs text-blue-500">({visit.diagnosis})</span>
+            {recentVisits.map((visit) => {
+              const linkedCheckup = visit.linkedPrenatalCheckupId ? getLinkedPrenatalCheckup(visit.id) : undefined;
+              const linkedPostpartum = visit.linkedPostpartumCheckupId ? getLinkedPostpartumCheckup(visit.id) : undefined;
+              const linkedPains = visit.linkedPainRecordIds?.length ? getLinkedPainRecords(visit.id) : [];
+
+              return (
+                <div key={visit.id} className="p-3 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        {visit.department}
+                        {visit.diagnosis && (
+                          <span className="ml-2 text-xs text-blue-500">({visit.diagnosis})</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500">{visit.date} · {visit.hospital}</p>
+                    </div>
+                    {visit.followUpDate && new Date(visit.followUpDate) >= new Date() ? (
+                      <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-600">
+                        复查 {visit.followUpDate}
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-600">
+                        已就诊
+                      </span>
                     )}
-                  </p>
-                  <p className="text-xs text-gray-500">{visit.date} · {visit.hospital}</p>
+                  </div>
+                  {(linkedCheckup || linkedPostpartum || linkedPains.length > 0) && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {linkedCheckup && (
+                        <span className="text-[10px] px-2 py-0.5 bg-fuchsia-100 text-fuchsia-600 rounded-full">
+                          📋 关联产检: {linkedCheckup.type}
+                        </span>
+                      )}
+                      {linkedPostpartum && (
+                        <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">
+                          📋 关联产后: {linkedPostpartum.typeName}
+                        </span>
+                      )}
+                      {linkedPains.length > 0 && (
+                        <span className="text-[10px] px-2 py-0.5 bg-rose-100 text-rose-600 rounded-full">
+                          🔥 关联疼痛: {linkedPains.length} 条
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {visit.followUpDate && new Date(visit.followUpDate) >= new Date() ? (
-                  <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-600">
-                    复查 {visit.followUpDate}
-                  </span>
-                ) : (
-                  <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-600">
-                    已就诊
-                  </span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -389,6 +430,13 @@ export default function MedicalAssistant() {
               <div className="text-3xl mb-1">📋</div>
               <p className="text-xs text-white/80">检查报告</p>
               <p className="font-bold">{testReports.length}</p>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl mb-1">🔗</div>
+              <p className="text-xs text-white/80">关联记录</p>
+              <p className="font-bold">
+                {visitRecords.filter(r => r.linkedPrenatalCheckupId || r.linkedPostpartumCheckupId || (r.linkedPainRecordIds && r.linkedPainRecordIds.length > 0)).length}
+              </p>
             </div>
             <div className="text-center">
               <div className="text-3xl mb-1">⚠️</div>

@@ -149,8 +149,7 @@ export default function DepartmentRecommendation() {
 
   const filteredDepartments = departments.filter((dep) => {
     const matchesCategory = selectedCategory === '全部' || dep.category === selectedCategory;
-    const matchesStage = dep.relatedLifeStages.includes(lifeStage as LifeStage);
-    return matchesCategory && (selectedCategory === '全部' ? true : matchesStage || true);
+    return matchesCategory;
   });
 
   const sortedDepartments = [...filteredDepartments].sort((a, b) => {

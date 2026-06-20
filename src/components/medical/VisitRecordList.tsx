@@ -13,6 +13,7 @@ import {
   Trash2,
   ArrowRight,
   AlertCircle,
+  Edit3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/useAppStore';
@@ -42,16 +43,19 @@ export default function VisitRecordList() {
     visitRecords,
     painRecords,
     prenatalCheckups,
+    postpartumCheckups,
     addVisitRecord,
     updateVisitRecord,
     deleteVisitRecord,
     getLinkedPainRecords,
     getLinkedPrenatalCheckup,
+    getLinkedPostpartumCheckup,
   } = useAppStore();
 
   const navigate = useNavigate();
 
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<VisitRecord>>({
     date: new Date().toISOString().split('T')[0],
@@ -63,8 +67,11 @@ export default function VisitRecordList() {
     prescription: '',
     followUpDate: '',
     linkedPrenatalCheckupId: '',
+    linkedPostpartumCheckupId: '',
     notes: '',
   });
+
+  const [selectedPainIds, setSelectedPainIds] = useState<string[]>([]);
 
   const sortedRecords = [...visitRecords].sort((a, b) =>
     new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -75,6 +82,11 @@ export default function VisitRecordList() {
     label: `${c.type} (${c.date}) ${c.completed ? '✓' : '待查'}`,
   }));
 
+  const availablePostpartumCheckups = postpartumCheckups.map((c) => ({
+    id: c.id,
+    label: `${c.typeName} (${c.date}) ${c.completed ? '✓' : '待查'}`,
+  }));
+
   const availablePainRecords = painRecords
     .filter((r) => r.date === form.date)
     .map((r) => ({
@@ -82,25 +94,8 @@ export default function VisitRecordList() {
       label: `疼痛等级 ${r.level} (${r.time})`,
     }));
 
-  const [selectedPainIds, setSelectedPainIds] = useState<string[]>([]);
-
-  const handleSave = () => {
-    if (!form.date || !form.department || !form.hospital || !form.chiefComplaint) return;
-    addVisitRecord({
-      id: generateId(),
-      date: form.date!,
-      department: form.department!,
-      hospital: form.hospital!,
-      doctor: form.doctor || undefined,
-      chiefComplaint: form.chiefComplaint!,
-      diagnosis: form.diagnosis || undefined,
-      prescription: form.prescription || undefined,
-      followUpDate: form.followUpDate || undefined,
-      linkedPrenatalCheckupId: form.linkedPrenatalCheckupId || undefined,
-      linkedPainRecordIds: selectedPainIds.length > 0 ? selectedPainIds : undefined,
-      notes: form.notes || undefined,
-    });
-    setShowModal(false);
+  const openAddModal = () => {
+    setEditingId(null);
     setForm({
       date: new Date().toISOString().split('T')[0],
       department: '妇产科',
@@ -111,9 +106,72 @@ export default function VisitRecordList() {
       prescription: '',
       followUpDate: '',
       linkedPrenatalCheckupId: '',
+      linkedPostpartumCheckupId: '',
       notes: '',
     });
     setSelectedPainIds([]);
+    setShowModal(true);
+  };
+
+  const openEditModal = (record: VisitRecord) => {
+    setEditingId(record.id);
+    setForm({
+      date: record.date,
+      department: record.department,
+      hospital: record.hospital,
+      doctor: record.doctor || '',
+      chiefComplaint: record.chiefComplaint,
+      diagnosis: record.diagnosis || '',
+      prescription: record.prescription || '',
+      followUpDate: record.followUpDate || '',
+      linkedPrenatalCheckupId: record.linkedPrenatalCheckupId || '',
+      linkedPostpartumCheckupId: record.linkedPostpartumCheckupId || '',
+      notes: record.notes || '',
+    });
+    setSelectedPainIds(record.linkedPainRecordIds || []);
+    setShowModal(true);
+  };
+
+  const handleSave = () => {
+    if (!form.date || !form.department || !form.hospital || !form.chiefComplaint) return;
+
+    const painIds = selectedPainIds.length > 0 ? selectedPainIds : undefined;
+
+    if (editingId) {
+      updateVisitRecord(editingId, {
+        date: form.date,
+        department: form.department,
+        hospital: form.hospital,
+        doctor: form.doctor || undefined,
+        chiefComplaint: form.chiefComplaint,
+        diagnosis: form.diagnosis || undefined,
+        prescription: form.prescription || undefined,
+        followUpDate: form.followUpDate || undefined,
+        linkedPrenatalCheckupId: form.linkedPrenatalCheckupId || undefined,
+        linkedPostpartumCheckupId: form.linkedPostpartumCheckupId || undefined,
+        linkedPainRecordIds: painIds,
+        notes: form.notes || undefined,
+      });
+    } else {
+      addVisitRecord({
+        id: generateId(),
+        date: form.date!,
+        department: form.department!,
+        hospital: form.hospital!,
+        doctor: form.doctor || undefined,
+        chiefComplaint: form.chiefComplaint!,
+        diagnosis: form.diagnosis || undefined,
+        prescription: form.prescription || undefined,
+        followUpDate: form.followUpDate || undefined,
+        linkedPrenatalCheckupId: form.linkedPrenatalCheckupId || undefined,
+        linkedPostpartumCheckupId: form.linkedPostpartumCheckupId || undefined,
+        linkedPainRecordIds: painIds,
+        notes: form.notes || undefined,
+      });
+    }
+
+    setShowModal(false);
+    setEditingId(null);
   };
 
   const togglePainSelect = (id: string) => {
@@ -130,7 +188,7 @@ export default function VisitRecordList() {
           就诊记录
         </h2>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={openAddModal}
           className="flex items-center gap-1 px-4 py-2 bg-gradient-to-r from-sky-400 to-blue-500 text-white rounded-full text-sm font-medium shadow-md hover:shadow-lg transition-all"
         >
           <Plus className="w-4 h-4" />
@@ -151,9 +209,9 @@ export default function VisitRecordList() {
         </div>
         <div className="p-4 rounded-xl bg-gradient-to-br from-fuchsia-50 to-pink-50 text-center">
           <p className="text-3xl font-bold text-fuchsia-500">
-            {visitRecords.filter((r) => r.linkedPrenatalCheckupId).length}
+            {visitRecords.filter((r) => r.linkedPrenatalCheckupId || r.linkedPostpartumCheckupId).length}
           </p>
-          <p className="text-xs text-gray-500 mt-1">关联产检</p>
+          <p className="text-xs text-gray-500 mt-1">关联产检/复查</p>
         </div>
       </div>
 
@@ -163,6 +221,9 @@ export default function VisitRecordList() {
             const isExpanded = expandedId === record.id;
             const linkedCheckup = record.linkedPrenatalCheckupId
               ? getLinkedPrenatalCheckup(record.id)
+              : undefined;
+            const linkedPostpartumCheckup = record.linkedPostpartumCheckupId
+              ? getLinkedPostpartumCheckup(record.id)
               : undefined;
             const linkedPains = record.linkedPainRecordIds?.length
               ? getLinkedPainRecords(record.id)
@@ -200,12 +261,17 @@ export default function VisitRecordList() {
                     <p className="text-sm text-gray-600 mt-1 line-clamp-1">
                       {record.chiefComplaint}
                     </p>
-                    {(linkedCheckup || linkedPains.length > 0) && (
+                    {(linkedCheckup || linkedPostpartumCheckup || linkedPains.length > 0) && (
                       <div className="flex items-center gap-2 mt-2">
                         <Link2 className="w-3 h-3 text-fuchsia-400" />
                         {linkedCheckup && (
                           <span className="text-xs px-2 py-0.5 bg-fuchsia-50 text-fuchsia-600 rounded-full">
                             产检: {linkedCheckup.type}
+                          </span>
+                        )}
+                        {linkedPostpartumCheckup && (
+                          <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
+                            产后复查: {linkedPostpartumCheckup.typeName}
                           </span>
                         )}
                         {linkedPains.length > 0 && (
@@ -264,6 +330,26 @@ export default function VisitRecordList() {
                       </div>
                     )}
 
+                    {linkedPostpartumCheckup && (
+                      <div className="p-3 bg-blue-50 rounded-xl">
+                        <p className="text-xs text-blue-600 font-medium mb-1">关联产后复查</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{linkedPostpartumCheckup.typeName}</p>
+                            <p className="text-xs text-gray-500">
+                              {linkedPostpartumCheckup.date} · {linkedPostpartumCheckup.completed ? '已完成' : '待查'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => navigate('/postpartum')}
+                            className="text-xs text-blue-500 font-medium flex items-center gap-1 hover:gap-2 transition-all"
+                          >
+                            查看产后 <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {linkedPains.length > 0 && (
                       <div className="p-3 bg-rose-50 rounded-xl">
                         <p className="text-xs text-rose-600 font-medium mb-1">关联疼痛记录</p>
@@ -286,7 +372,14 @@ export default function VisitRecordList() {
                       </div>
                     )}
 
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() => openEditModal(record)}
+                        className="flex items-center gap-1 text-xs text-sky-500 hover:text-sky-700 transition-colors"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        编辑
+                      </button>
                       <button
                         onClick={() => deleteVisitRecord(record.id)}
                         className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
@@ -313,10 +406,13 @@ export default function VisitRecordList() {
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-800">添加就诊记录</h2>
+              <h2 className="text-xl font-bold text-gray-800">
+                {editingId ? '编辑就诊记录' : '添加就诊记录'}
+              </h2>
               <button
                 onClick={() => {
                   setShowModal(false);
+                  setEditingId(null);
                   setSelectedPainIds([]);
                 }}
                 className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -435,6 +531,25 @@ export default function VisitRecordList() {
                 </div>
               )}
 
+              {availablePostpartumCheckups.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-1">
+                    <Link2 className="w-4 h-4 text-blue-400" />
+                    关联产后复查
+                  </label>
+                  <select
+                    value={form.linkedPostpartumCheckupId || ''}
+                    onChange={(e) => setForm({ ...form, linkedPostpartumCheckupId: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                  >
+                    <option value="">不关联</option>
+                    {availablePostpartumCheckups.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {availablePainRecords.length > 0 && (
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-1">
@@ -475,6 +590,7 @@ export default function VisitRecordList() {
                 <button
                   onClick={() => {
                     setShowModal(false);
+                    setEditingId(null);
                     setSelectedPainIds([]);
                   }}
                   className="flex-1 btn-secondary"
@@ -486,7 +602,7 @@ export default function VisitRecordList() {
                   disabled={!form.date || !form.department || !form.hospital || !form.chiefComplaint}
                   className="flex-1 bg-gradient-to-r from-sky-400 to-blue-500 text-white px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  保存
+                  {editingId ? '更新' : '保存'}
                 </button>
               </div>
             </div>
