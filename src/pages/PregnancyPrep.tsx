@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Baby,
   Thermometer,
@@ -111,6 +111,7 @@ export default function PregnancyPrepPage() {
     detectTemperatureAnomalies,
     acknowledgeTemperatureAlert,
     temperatureRecords,
+    temperatureAlerts,
   } = useAppStore();
   const navigate = useNavigate();
 
@@ -121,6 +122,10 @@ export default function PregnancyPrepPage() {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'temperature' | 'calendar'>('overview');
   const [showImportModal, setShowImportModal] = useState(false);
+
+  useEffect(() => {
+    detectTemperatureAnomalies();
+  }, [detectTemperatureAnomalies]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRecord, setNewRecord] = useState<Partial<OvulationRecord>>({
@@ -211,8 +216,11 @@ export default function PregnancyPrepPage() {
 
   const upcomingProbabilities = pred.conceptionProbabilities?.filter((p) => p.date >= todayStr).slice(0, 7) || [];
 
-  const tempAnomalies = detectTemperatureAnomalies();
-  const unackAnomalies = tempAnomalies.filter((a) => !a.acknowledged);
+  const tempAnomalies = useMemo(() => temperatureAlerts, [temperatureAlerts]);
+  const unackAnomalies = useMemo(
+    () => tempAnomalies.filter((a) => !a.acknowledged),
+    [tempAnomalies]
+  );
 
   const pageTabs: { key: 'overview' | 'temperature' | 'calendar'; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
     { key: 'overview', label: '备孕概览', icon: Heart, color: 'from-fuchsia-400 via-pink-400 to-rose-400' },

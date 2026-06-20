@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Thermometer,
   TrendingUp,
@@ -32,17 +32,24 @@ const phaseLabels: Record<CyclePhase | string, string> = {
 export default function TemperatureChart() {
   const {
     temperatureRecords,
+    temperatureAlerts,
     getTemperatureStatistics,
     getTemperatureTrend,
     detectTemperatureAnomalies,
+    acknowledgeTemperatureAlert,
   } = useAppStore();
+
+  useEffect(() => {
+    detectTemperatureAnomalies();
+  }, [detectTemperatureAnomalies, temperatureRecords.length]);
+
+  const anomalies = useMemo(() => temperatureAlerts, [temperatureAlerts]);
 
   const [days, setDays] = useState(30);
   const [showPhaseColors, setShowPhaseColors] = useState(true);
 
   const stats = useMemo(() => getTemperatureStatistics(), [getTemperatureStatistics]);
   const trend = useMemo(() => getTemperatureTrend(days), [getTemperatureTrend, days]);
-  const anomalies = useMemo(() => detectTemperatureAnomalies(), [detectTemperatureAnomalies]);
 
   const chartData = useMemo(() => {
     return trend.map((item) => ({

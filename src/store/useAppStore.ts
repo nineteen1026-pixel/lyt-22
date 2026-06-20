@@ -3331,10 +3331,11 @@ export const useAppStore = create<AppState>()(
         );
       },
 
-      addTemperatureRecord: (record: Omit<TemperatureRecord, 'id'>) =>
+      addTemperatureRecord: (record: Omit<TemperatureRecord, 'id'>) => {
+        const newRecord = { ...record, id: generateId() };
+        let merged: TemperatureRecord[] = [];
         set((state) => {
-          const newRecord = { ...record, id: generateId() };
-          const merged = mergeRecords(state.temperatureRecords, [newRecord]);
+          merged = mergeRecords(state.temperatureRecords, [newRecord]);
           const syncItems = syncTemperatureToOvulation(merged);
           const existingOvDates = new Set(state.ovulationRecords.map((r) => r.date));
           const newOvRecords = syncItems
@@ -3363,7 +3364,9 @@ export const useAppStore = create<AppState>()(
             temperatureRecords: merged,
             ovulationRecords: [...updatedOv, ...newOvRecords],
           };
-        }),
+        });
+        get().detectTemperatureAnomalies();
+      },
 
       addTemperatureRecords: (records: Omit<TemperatureRecord, 'id'>[]) => {
         const newRecords = records.map((r) => ({ ...r, id: generateId() }));
@@ -3399,6 +3402,7 @@ export const useAppStore = create<AppState>()(
             ovulationRecords: [...updatedOv, ...newOvRecords],
           };
         });
+        get().detectTemperatureAnomalies();
         return merged;
       },
 
@@ -3440,9 +3444,45 @@ export const useAppStore = create<AppState>()(
       },
 
       detectTemperatureAnomalies: (records?: TemperatureRecord[]): TemperatureAnomalyAlert[] => {
-        const { temperatureRecords } = get();
-        const targetRecords = records || temperatureRecords;
-        return detectAnomalies(targetRecords);
+        const state = get();
+        const targetRecords = records || state.temperatureRecords;
+        const freshAlerts = detectAnomalies(targetRecords);
+
+        const existingMap = new Map(state.temperatureAlerts.map((a) => [`${a.type}-${a.date}`, a]));
+        const merged: TemperatureAnomalyAlert[] = [];
+        const seenKeys = new Set<string>();
+
+        for (const alert of freshAlerts) {
+          const key = `${alert.type}-${alert.date}`;
+          seenKeys.add(key);
+          const existing = existingMap.get(key);
+          if (existing) {
+            merged.push({
+              ...alert,
+              id: existing.id,
+              acknowledged: existing.acknowledged,
+            });
+          } else {
+            merged.push(alert);
+          }
+        }
+
+        for (const [key, existing] of existingMap) {
+          if (!seenKeys.has(key)) {
+            merged.push(existing);
+          }
+        }
+
+        merged.sort((a, b) => b.date.localeCompare(a.date));
+
+        if (
+          merged.length !== state.temperatureAlerts.length ||
+          merged.some((a, i) => a.id !== state.temperatureAlerts[i]?.id || a.acknowledged !== state.temperatureAlerts[i]?.acknowledged)
+        ) {
+          set({ temperatureAlerts: merged });
+        }
+
+        return merged;
       },
 
       acknowledgeTemperatureAlert: (alertId: string) =>
