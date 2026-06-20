@@ -46,6 +46,8 @@ import type {
   RehabMilestone,
   RehabWeeklyGoal,
   ConceptionProbability,
+  VisitRecord,
+  TestReport,
 } from '@/types';
 import { useNutritionStore } from '@/store/useNutritionStore';
 
@@ -1119,6 +1121,61 @@ const buildCustomPhases = (): RehabPhase[] => [
   },
 ];
 
+const mockVisitRecords: VisitRecord[] = [
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0],
+    department: '妇产科',
+    hospital: '妇幼保健院',
+    doctor: '李医生',
+    chiefComplaint: '产后腰痛、盆底不适',
+    diagnosis: '盆底肌功能障碍I度',
+    prescription: '盆底康复训练，每日凯格尔运动3组',
+    followUpDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    linkedPainRecordIds: [],
+    notes: '产后恢复情况良好，需继续盆底训练',
+  },
+  {
+    id: generateId(),
+    date: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+    department: '内分泌科',
+    hospital: '市第一人民医院',
+    doctor: '王医生',
+    chiefComplaint: '月经不规律、经前综合征加重',
+    diagnosis: '经前期综合征',
+    prescription: '维生素B6 50mg 每日1次，月见草油 1000mg 每日1次',
+    linkedPainRecordIds: [],
+    notes: '建议记录情绪与周期变化',
+  },
+];
+
+const mockTestReports: TestReport[] = [
+  {
+    id: generateId(),
+    visitRecordId: mockVisitRecords[0]?.id,
+    date: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0],
+    name: '盆底肌力评估',
+    department: '妇产科',
+    result: 'I型肌纤维肌力2级，II型肌纤维肌力1级',
+    abnormalItems: ['II型肌纤维肌力偏低'],
+    referenceRange: '正常: I型≥3级, II型≥2级',
+    notes: '建议加强快肌纤维训练',
+    createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+  },
+  {
+    id: generateId(),
+    visitRecordId: mockVisitRecords[1]?.id,
+    date: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+    name: '性激素六项',
+    department: '内分泌科',
+    result: 'FSH 6.5mIU/ml, LH 4.8mIU/ml, E2 45pg/ml',
+    abnormalItems: [],
+    referenceRange: 'FSH 3.5-12.5, LH 2.4-12.6, E2 30-400',
+    notes: '激素水平在正常范围内',
+    createdAt: new Date(Date.now() - 14 * 86400000).toISOString(),
+  },
+];
+
 const defaultRehabPlanId = generateId();
 const defaultRehabMilestones: RehabMilestone[] = [
   {
@@ -1294,6 +1351,8 @@ export const useAppStore = create<AppState>()(
       rehabCheckins: mockRehabCheckins,
       rehabBodyMetrics: mockRehabBodyMetrics,
       activeRehabPlanId: defaultRehabPlanId,
+      visitRecords: mockVisitRecords,
+      testReports: mockTestReports,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
@@ -3154,6 +3213,64 @@ export const useAppStore = create<AppState>()(
           }))
           .sort((a, b) => a.date.localeCompare(b.date));
       },
+
+      addVisitRecord: (record: VisitRecord) =>
+        set((state) => ({
+          visitRecords: [...state.visitRecords, record],
+        })),
+
+      updateVisitRecord: (id: string, data: Partial<VisitRecord>) =>
+        set((state) => ({
+          visitRecords: state.visitRecords.map((r) =>
+            r.id === id ? { ...r, ...data } : r
+          ),
+        })),
+
+      deleteVisitRecord: (id: string) =>
+        set((state) => ({
+          visitRecords: state.visitRecords.filter((r) => r.id !== id),
+          testReports: state.testReports.filter((r) => r.visitRecordId !== id),
+        })),
+
+      addTestReport: (report: TestReport) =>
+        set((state) => ({
+          testReports: [...state.testReports, report],
+        })),
+
+      updateTestReport: (id: string, data: Partial<TestReport>) =>
+        set((state) => ({
+          testReports: state.testReports.map((r) =>
+            r.id === id ? { ...r, ...data } : r
+          ),
+        })),
+
+      deleteTestReport: (id: string) =>
+        set((state) => ({
+          testReports: state.testReports.filter((r) => r.id !== id),
+        })),
+
+      getVisitRecordsByDate: (date: string) => {
+        const { visitRecords } = get();
+        return visitRecords.filter((r) => r.date === date);
+      },
+
+      getLinkedPainRecords: (visitId: string) => {
+        const { visitRecords, painRecords } = get();
+        const visit = visitRecords.find((r) => r.id === visitId);
+        if (!visit || !visit.linkedPainRecordIds?.length) return [];
+        return painRecords.filter((r) =>
+          visit.linkedPainRecordIds!.includes(r.id)
+        );
+      },
+
+      getLinkedPrenatalCheckup: (visitId: string) => {
+        const { visitRecords, prenatalCheckups } = get();
+        const visit = visitRecords.find((r) => r.id === visitId);
+        if (!visit?.linkedPrenatalCheckupId) return undefined;
+        return prenatalCheckups.find(
+          (c) => c.id === visit.linkedPrenatalCheckupId
+        );
+      },
     }),
     {
       name: 'her-cycle-storage',
@@ -3182,6 +3299,8 @@ export const useAppStore = create<AppState>()(
         rehabCheckins: state.rehabCheckins,
         rehabBodyMetrics: state.rehabBodyMetrics,
         activeRehabPlanId: state.activeRehabPlanId,
+        visitRecords: state.visitRecords,
+        testReports: state.testReports,
       }),
     }
   )

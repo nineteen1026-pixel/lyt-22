@@ -827,6 +827,46 @@ export interface RehabProgress {
   totalMilestones: number;
 }
 
+export interface DepartmentRecommendation {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  commonSymptoms: string[];
+  relatedLifeStages: LifeStage[];
+  icon: string;
+  urgency: 'low' | 'medium' | 'high';
+}
+
+export interface VisitRecord {
+  id: string;
+  date: string;
+  department: string;
+  hospital: string;
+  doctor?: string;
+  chiefComplaint: string;
+  diagnosis?: string;
+  prescription?: string;
+  followUpDate?: string;
+  linkedPrenatalCheckupId?: string;
+  linkedPainRecordIds?: string[];
+  notes?: string;
+}
+
+export interface TestReport {
+  id: string;
+  visitRecordId?: string;
+  date: string;
+  name: string;
+  department: string;
+  result?: string;
+  abnormalItems?: string[];
+  referenceRange?: string;
+  images?: string[];
+  notes?: string;
+  createdAt: string;
+}
+
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
@@ -852,6 +892,8 @@ export interface AppState {
   rehabCheckins: RehabCheckin[];
   rehabBodyMetrics: RehabBodyMetric[];
   activeRehabPlanId: string | null;
+  visitRecords: VisitRecord[];
+  testReports: TestReport[];
   setLifeStage: (stage: LifeStage) => void;
   addPeriodRecord: (record: PeriodRecord) => void;
   addOvertimeRecord: (record: OvertimeRecord) => void;
@@ -925,4 +967,13 @@ export interface AppState {
   getRehabMilestonesByPlan: (planId: string) => RehabMilestone[];
   updateRehabWeeklyGoal: (planId: string, goalId: string, data: Partial<RehabWeeklyGoal>) => void;
   getRehabBodyMetricTrend: (planId: string) => { date: string; weight?: number; pelvicFloorScore?: number; diastasisRecti?: number }[];
+  addVisitRecord: (record: VisitRecord) => void;
+  updateVisitRecord: (id: string, data: Partial<VisitRecord>) => void;
+  deleteVisitRecord: (id: string) => void;
+  addTestReport: (report: TestReport) => void;
+  updateTestReport: (id: string, data: Partial<TestReport>) => void;
+  deleteTestReport: (id: string) => void;
+  getVisitRecordsByDate: (date: string) => VisitRecord[];
+  getLinkedPainRecords: (visitId: string) => PainRecord[];
+  getLinkedPrenatalCheckup: (visitId: string) => PrenatalCheckup | undefined;
 }
