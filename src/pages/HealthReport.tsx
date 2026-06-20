@@ -47,13 +47,24 @@ export default function HealthReport() {
   const [range, setRange] = useState<ReportRange>('week');
   const report = useHealthReport(range);
   const reportRef = useRef<HTMLDivElement>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const handlePrint = () => {
-    window.print();
+    setIsPrinting(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setIsPrinting(false), 500);
+    }, 300);
   };
 
-  const handleExportPDF = async () => {
-    window.print();
+  const handleExportPDF = () => {
+    setIsPrinting(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setIsPrinting(false), 500);
+    }, 300);
   };
 
   return (
@@ -729,10 +740,62 @@ export default function HealthReport() {
 
       <style>{`
         @media print {
+          @page {
+            size: A4;
+            margin: 15mm 12mm;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          html, body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+          }
           .print\\:hidden { display: none !important; }
-          body { background: white; }
-          .card { break-inside: avoid; box-shadow: none !important; border: 1px solid #e5e7eb !important; }
-          section { break-inside: avoid; }
+          .container {
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .card {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            box-shadow: none !important;
+            border: 1px solid #e5e7eb !important;
+            background: white !important;
+          }
+          section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          section.card {
+            margin-bottom: 12px !important;
+          }
+          h1, h2, h3, h4 {
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+          svg {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            max-width: 100% !important;
+          }
+          .bg-gradient-to-br, .bg-gradient-to-r, .bg-gradient-to-r, .bg-gradient-to-r, .bg-gradient-to-r {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .from-pink-50, .from-indigo-50, .from-purple-50, .from-emerald-50,
+          .via-rose-50, .to-purple-50, .to-rose-400, .to-rose-500, .to-emerald-500,
+          .to-blue-500, .to-purple-500, .to-teal-500 {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .rounded-2xl, .rounded-xl, .rounded-full {
+            border-radius: 0.5rem !important;
+          }
         }
       `}</style>
     </div>

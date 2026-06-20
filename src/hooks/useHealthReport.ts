@@ -70,7 +70,7 @@ export function useHealthReport(range: ReportRange) {
     const nutritionReport = computeNutritionReport(nutritionState, start, end, prevStart, prevEnd);
     const cycleReport = computeCycleReport(appState, dateRangeFilter);
     const postpartumReport = computePostpartumReport(appState, dateRangeFilter);
-    const medicationReport = computeMedicationReport(appState, dateRangeFilter);
+    const medicationReport = computeMedicationReport(appState, dateRangeFilter, start, end);
     const moodReport = computeMoodReport(appState, dateRangeFilter);
     const painReport = computePainReport(appState, dateRangeFilter);
     const menopauseReport = computeMenopauseReport(appState, dateRangeFilter);
@@ -320,44 +320,101 @@ function computePostpartumReport(
 
 type CatStat = { category: MedicationCategory; rate: number; total: number; taken: number };
 
+function getDatesInRange(start: Date, end: Date): string[] {
+  const dates: string[] = [];
+  const d = new Date(start);
+  while (d <= end) {
+    dates.push(d.toISOString().split('T')[0]);
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+}
+
+function getPainLevelForDate(appState: AppStoreState, date: string): number {
+  const todays = appState.painRecords.filter((r: PainRecord) => r.date === date);
+  if (todays.length === 0) return 0;
+  const sorted = [...todays].sort((a, b) => b.time.localeCompare(a.time));
+  return sorted[0].level;
+}
+
+function isReminderActiveOnDate(
+  reminder: MedicationReminder,
+  date: string,
+  painLevel: number
+): boolean {
+  if (!reminder.active) return false;
+  if (reminder.startDate > date) return false;
+  if (reminder.endDate && reminder.endDate < date) return false;
+  if (reminder.category === 'dysmenorrhea' && reminder.linkedPainLevel && painLevel < reminder.linkedPainLevel) {
+    return false;
+  }
+  return true;
+}
+
 function computeMedicationReport(
   appState: AppStoreState,
-  filter: (d: string) => boolean
+  filter: (d: string) => boolean,
+  start: Date,
+  end: Date
 ): ComputeResult<MedicationReportData> {
   const records: MedicationRecord[] = appState.medicationRecords.filter((r: MedicationRecord) =>
     filter(r.date)
   );
-  const adherence = appState.getMedicationAdherence ? appState.getMedicationAdherence() : null;
 
-  if (records.length === 0 && appState.medicationReminders.length === 0) {
+  const datesInRange = getDatesInRange(start, end);
+
+  let expectedTotal = 0;
+  let actualTaken = 0;
+  const categoryExpected = new Map<MedicationCategory, number>();
+  const categoryTaken = new Map<MedicationCategory, number>();
+
+  for (const date of datesInRange) {
+    const painLevel = getPainLevelForDate(appState, date);
+    for (const reminder of appState.medicationReminders) {
+      if (!isReminderActiveOnDate(reminder, date, painLevel)) continue;
+      const dailyDoses = reminder.times.length;
+      expectedTotal += dailyDoses;
+      const catExpected = categoryExpected.get(reminder.category) || 0;
+      categoryExpected.set(reminder.category, catExpected + dailyDoses);
+
+      const dateRecords = records.filter(
+        (r: MedicationRecord) => r.reminderId === reminder.id && r.date === date
+      );
+      const takenToday = dateRecords.filter((r: MedicationRecord) => r.taken).length;
+      actualTaken += takenToday;
+      const catTaken = categoryTaken.get(reminder.category) || 0;
+      categoryTaken.set(reminder.category, catTaken + takenToday);
+    }
+  }
+
+  if (expectedTotal === 0 && records.length === 0 && appState.medicationReminders.length === 0) {
     return { hasData: false, data: {} as MedicationReportData };
   }
 
-  const categoryMap = new Map<MedicationCategory, { total: number; taken: number }>();
-  for (const reminder of appState.medicationReminders) {
-    const cat = reminder.category;
-    if (!categoryMap.has(cat)) {
-      categoryMap.set(cat, { total: 0, taken: 0 });
-    }
-    const catRecords = records.filter((r: MedicationRecord) => r.reminderId === reminder.id);
-    const existing = categoryMap.get(cat)!;
-    existing.total += catRecords.length;
-    existing.taken += catRecords.filter((r: MedicationRecord) => r.taken).length;
-  }
+  const adherenceRate = expectedTotal > 0 ? Math.round((actualTaken / expectedTotal) * 100) : 0;
 
-  const adherenceByCategory: CatStat[] = Array.from(categoryMap.entries()).map(([category, v]) => ({
-    category,
-    ...v,
-    rate: v.total > 0 ? Math.round((v.taken / v.total) * 100) : 0,
-  }));
+  const categories = new Set<MedicationCategory>([
+    ...Array.from(categoryExpected.keys()),
+    ...Array.from(categoryTaken.keys()),
+  ]);
+  const adherenceByCategory: CatStat[] = Array.from(categories).map((category) => {
+    const total = categoryExpected.get(category) || 0;
+    const taken = categoryTaken.get(category) || 0;
+    return {
+      category,
+      total,
+      taken,
+      rate: total > 0 ? Math.round((taken / total) * 100) : 0,
+    };
+  }).filter((c) => c.total > 0);
 
   return {
     hasData: true,
     data: {
       totalReminders: appState.medicationReminders.length,
       activeReminders: appState.medicationReminders.filter((r: MedicationReminder) => r.active).length,
-      adherenceRate: adherence?.rate || 0,
-      totalTaken: records.filter((r: MedicationRecord) => r.taken).length,
+      adherenceRate,
+      totalTaken: actualTaken,
       totalSkipped: records.filter((r: MedicationRecord) => r.skipped).length,
       totalRecords: records.length,
       adherenceByCategory,
