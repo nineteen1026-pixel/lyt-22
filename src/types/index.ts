@@ -652,6 +652,131 @@ export interface HealthReport {
   menopause?: MenopauseReportData;
 }
 
+export type RehabPhaseType = 'phase1' | 'phase2' | 'phase3' | 'phase4';
+
+export interface RehabExercise {
+  id: string;
+  name: string;
+  description: string;
+  duration: number;
+  sets: number;
+  reps: number;
+  restSeconds: number;
+  difficulty: 1 | 2 | 3 | 4 | 5;
+  tips: string[];
+  precautions?: string[];
+  category: 'warmup' | 'strength' | 'cardio' | 'flexibility' | 'breathing' | 'cool-down';
+  bodyParts?: string[];
+}
+
+export interface RehabPhase {
+  id: RehabPhaseType;
+  name: string;
+  description: string;
+  durationWeeks: number;
+  goals: string[];
+  exercises: RehabExercise[];
+  weeklyFrequency: number;
+  color: string;
+  gradient: string;
+  schedule?: RehabWeeklySchedule;
+}
+
+export interface RehabWeeklySchedule {
+  monday: RehabScheduleSlot[];
+  tuesday: RehabScheduleSlot[];
+  wednesday: RehabScheduleSlot[];
+  thursday: RehabScheduleSlot[];
+  friday: RehabScheduleSlot[];
+  saturday: RehabScheduleSlot[];
+  sunday: RehabScheduleSlot[];
+}
+
+export interface RehabScheduleSlot {
+  exerciseId: string;
+  completed: boolean;
+}
+
+export interface RehabMilestone {
+  id: string;
+  planId: string;
+  phaseId: RehabPhaseType;
+  title: string;
+  description: string;
+  targetValue: number;
+  currentValue: number;
+  unit: string;
+  achieved: boolean;
+  achievedDate?: string;
+  icon: string;
+}
+
+export interface RehabBodyMetric {
+  id: string;
+  planId: string;
+  date: string;
+  weight?: number;
+  waistCircumference?: number;
+  hipCircumference?: number;
+  bellyCircumference?: number;
+  pelvicFloorScore?: number;
+  diastasisRecti?: number;
+  notes?: string;
+}
+
+export interface RehabWeeklyGoal {
+  id: string;
+  planId: string;
+  weekStartDate: string;
+  targetSessions: number;
+  completedSessions: number;
+  targetMinutes: number;
+  completedMinutes: number;
+}
+
+export interface RehabPlan {
+  id: string;
+  name: string;
+  type: 'postpartum' | 'pelvic-floor' | 'core' | 'general' | 'custom';
+  startDate: string;
+  phases: RehabPhase[];
+  milestones?: RehabMilestone[];
+  weeklyGoals?: RehabWeeklyGoal[];
+  notes?: string;
+  createdAt: string;
+}
+
+export interface RehabCheckin {
+  id: string;
+  planId: string;
+  phaseId: RehabPhaseType;
+  date: string;
+  time: string;
+  completedExercises: string[];
+  totalDuration: number;
+  painLevel: number;
+  fatigueLevel: number;
+  mood: 'good' | 'normal' | 'tired' | 'bad';
+  bodyMetrics?: {
+    weight?: number;
+    pelvicFloorScore?: number;
+    diastasisRecti?: number;
+  };
+  notes?: string;
+  photoUrl?: string;
+}
+
+export interface RehabProgress {
+  planId: string;
+  currentPhase: RehabPhaseType;
+  startDate: string;
+  totalCheckins: number;
+  weeklyStreak: number;
+  phaseProgress: Record<RehabPhaseType, number>;
+  milestonesAchieved: number;
+  totalMilestones: number;
+}
+
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
@@ -673,6 +798,10 @@ export interface AppState {
   painRecords: PainRecord[];
   familyMembers: FamilyMember[];
   shareCodes: ShareCode[];
+  rehabPlans: RehabPlan[];
+  rehabCheckins: RehabCheckin[];
+  rehabBodyMetrics: RehabBodyMetric[];
+  activeRehabPlanId: string | null;
   setLifeStage: (stage: LifeStage) => void;
   addPeriodRecord: (record: PeriodRecord) => void;
   addOvertimeRecord: (record: OvertimeRecord) => void;
@@ -727,4 +856,21 @@ export interface AppState {
   revokeShareCode: (codeId: string) => void;
   redeemShareCode: (code: string, memberName: string, relation: FamilyRelation) => FamilyMember | null;
   getMaskedHealthData: (permissions: PermissionConfig) => MaskedHealthData;
+  createRehabPlan: (plan: Omit<RehabPlan, 'id' | 'createdAt'>) => RehabPlan;
+  updateRehabPlan: (id: string, data: Partial<RehabPlan>) => void;
+  deleteRehabPlan: (id: string) => void;
+  setActiveRehabPlan: (id: string | null) => void;
+  addRehabCheckin: (checkin: Omit<RehabCheckin, 'id'>) => void;
+  getRehabCheckinsByPlan: (planId: string) => RehabCheckin[];
+  getRehabCheckinsByDate: (date: string) => RehabCheckin[];
+  getRehabProgress: (planId: string) => RehabProgress;
+  getCurrentRehabPhase: (planId: string) => RehabPhase | null;
+  getWeeklyRehabStats: (planId: string) => { checkins: number; totalMinutes: number; avgPain: number; completedDays: string[] };
+  getDefaultRehabPlan: (type: RehabPlan['type']) => Omit<RehabPlan, 'id' | 'createdAt'>;
+  addRehabBodyMetric: (metric: Omit<RehabBodyMetric, 'id'>) => void;
+  getRehabBodyMetricsByPlan: (planId: string) => RehabBodyMetric[];
+  updateRehabMilestone: (planId: string, milestoneId: string, data: Partial<RehabMilestone>) => void;
+  getRehabMilestonesByPlan: (planId: string) => RehabMilestone[];
+  updateRehabWeeklyGoal: (planId: string, goalId: string, data: Partial<RehabWeeklyGoal>) => void;
+  getRehabBodyMetricTrend: (planId: string) => { date: string; weight?: number; pelvicFloorScore?: number; diastasisRecti?: number }[];
 }

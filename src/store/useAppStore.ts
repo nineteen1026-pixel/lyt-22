@@ -37,6 +37,14 @@ import type {
   MaskedHealthData,
   DailyNutritionSummary,
   NutrientGapItem,
+  RehabPlan,
+  RehabCheckin,
+  RehabPhase,
+  RehabPhaseType,
+  RehabExercise,
+  RehabBodyMetric,
+  RehabMilestone,
+  RehabWeeklyGoal,
 } from '@/types';
 import { useNutritionStore } from '@/store/useNutritionStore';
 
@@ -541,6 +549,376 @@ const mockHormoneRecords: HormoneRecord[] = [
   },
 ];
 
+const buildDefaultRehabPhases = (): RehabPhase[] => {
+  const phase1Exercises: RehabExercise[] = [
+    {
+      id: 'p1-e1',
+      name: '腹式呼吸',
+      description: '平躺，双手放在腹部，深吸气使腹部隆起，呼气时收紧腹部',
+      duration: 5,
+      sets: 3,
+      reps: 10,
+      restSeconds: 30,
+      difficulty: 1,
+      tips: ['呼吸要缓慢均匀', '注意力集中在腹部', '每天练习效果更好'],
+      precautions: ['避免憋气', '如有不适立即停止'],
+      category: 'breathing',
+    },
+    {
+      id: 'p1-e2',
+      name: '凯格尔运动',
+      description: '收缩盆底肌肉，保持5秒后放松5秒',
+      duration: 5,
+      sets: 3,
+      reps: 15,
+      restSeconds: 30,
+      difficulty: 1,
+      tips: ['找到正确的肌肉群', '保持正常呼吸', '不要收缩腹部或大腿'],
+      category: 'strength',
+    },
+    {
+      id: 'p1-e3',
+      name: '脚踝旋转',
+      description: '平躺，双脚脚踝顺时针和逆时针旋转',
+      duration: 3,
+      sets: 2,
+      reps: 10,
+      restSeconds: 20,
+      difficulty: 1,
+      tips: ['动作要缓慢', '每个方向都要做到位'],
+      category: 'flexibility',
+    },
+  ];
+
+  const phase2Exercises: RehabExercise[] = [
+    {
+      id: 'p2-e1',
+      name: '桥式运动',
+      description: '平躺屈膝，双脚踩地，慢慢抬起臀部，保持后缓慢放下',
+      duration: 8,
+      sets: 3,
+      reps: 12,
+      restSeconds: 45,
+      difficulty: 2,
+      tips: ['收紧臀部和腹部', '不要过度抬腰', '保持呼吸均匀'],
+      precautions: ['剖腹产伤口愈合前谨慎'],
+      category: 'strength',
+    },
+    {
+      id: 'p2-e2',
+      name: '猫式伸展',
+      description: '四点支撑，吸气抬头塌腰，呼气含胸弓背',
+      duration: 5,
+      sets: 3,
+      reps: 8,
+      restSeconds: 30,
+      difficulty: 2,
+      tips: ['动作与呼吸配合', '幅度要适中'],
+      category: 'flexibility',
+    },
+    {
+      id: 'p2-e3',
+      name: '靠墙深蹲',
+      description: '背靠墙站立，缓慢下蹲至大腿与地面平行',
+      duration: 8,
+      sets: 3,
+      reps: 10,
+      restSeconds: 45,
+      difficulty: 2,
+      tips: ['膝盖不要超过脚尖', '保持背部贴墙'],
+      category: 'strength',
+    },
+  ];
+
+  const phase3Exercises: RehabExercise[] = [
+    {
+      id: 'p3-e1',
+      name: '平板支撑',
+      description: '肘膝支撑，保持身体呈一条直线',
+      duration: 5,
+      sets: 3,
+      reps: 3,
+      restSeconds: 60,
+      difficulty: 3,
+      tips: ['从30秒开始', '保持核心收紧', '不要塌腰或翘臀'],
+      precautions: ['如有腰痛立即停止'],
+      category: 'strength',
+    },
+    {
+      id: 'p3-e2',
+      name: '死虫式',
+      description: '平躺，手臂举过头顶，双腿屈膝90度，交替伸展对侧手脚',
+      duration: 8,
+      sets: 3,
+      reps: 10,
+      restSeconds: 45,
+      difficulty: 3,
+      tips: ['保持腰部贴地', '动作要缓慢控制'],
+      category: 'strength',
+    },
+    {
+      id: 'p3-e3',
+      name: '快走',
+      description: '保持中等速度的健步走',
+      duration: 20,
+      sets: 1,
+      reps: 1,
+      restSeconds: 0,
+      difficulty: 2,
+      tips: ['保持正确姿势', '选择舒适的鞋', '逐步增加时间'],
+      category: 'cardio',
+    },
+  ];
+
+  const phase4Exercises: RehabExercise[] = [
+    {
+      id: 'p4-e1',
+      name: '卷腹',
+      description: '平躺屈膝，双手放在耳侧，用腹部力量抬起上半身',
+      duration: 10,
+      sets: 4,
+      reps: 15,
+      restSeconds: 45,
+      difficulty: 4,
+      tips: ['不要用手拉头', '下背部贴地', '动作要控制'],
+      precautions: ['腹直肌分离未恢复前不建议'],
+      category: 'strength',
+    },
+    {
+      id: 'p4-e2',
+      name: '侧平板支撑',
+      description: '侧卧，用前臂和脚支撑身体，保持身体呈一条直线',
+      duration: 6,
+      sets: 3,
+      reps: 2,
+      restSeconds: 60,
+      difficulty: 4,
+      tips: ['从短时间开始', '保持髋部抬起'],
+      category: 'strength',
+    },
+    {
+      id: 'p4-e3',
+      name: '慢跑',
+      description: '轻松节奏的慢跑',
+      duration: 30,
+      sets: 1,
+      reps: 1,
+      restSeconds: 0,
+      difficulty: 3,
+      tips: ['做好热身', '循序渐进', '注意补水'],
+      precautions: ['盆底肌恢复良好后开始'],
+      category: 'cardio',
+    },
+    {
+      id: 'p4-e4',
+      name: '全身拉伸',
+      description: '针对主要肌群的静态拉伸',
+      duration: 10,
+      sets: 1,
+      reps: 1,
+      restSeconds: 0,
+      difficulty: 2,
+      tips: ['每个动作保持20-30秒', '不要过度拉伸'],
+      category: 'cool-down',
+    },
+  ];
+
+  return [
+    {
+      id: 'phase1' as RehabPhaseType,
+      name: '第一阶段 · 基础恢复',
+      description: '产后0-6周，以温和的呼吸和盆底训练为主',
+      durationWeeks: 6,
+      goals: ['恢复正常呼吸模式', '唤醒盆底肌肉', '促进血液循环', '预防血栓'],
+      exercises: phase1Exercises,
+      weeklyFrequency: 5,
+      color: 'text-sky-600',
+      gradient: 'from-sky-400 to-cyan-500',
+    },
+    {
+      id: 'phase2' as RehabPhaseType,
+      name: '第二阶段 · 力量重建',
+      description: '产后6-12周，开始低强度力量训练',
+      durationWeeks: 6,
+      goals: ['增强核心稳定性', '恢复臀部力量', '改善体态', '增加活动量'],
+      exercises: phase2Exercises,
+      weeklyFrequency: 4,
+      color: 'text-teal-600',
+      gradient: 'from-teal-400 to-emerald-500',
+    },
+    {
+      id: 'phase3' as RehabPhaseType,
+      name: '第三阶段 · 功能强化',
+      description: '产后3-6个月，加入有氧和核心训练',
+      durationWeeks: 12,
+      goals: ['强化核心肌群', '恢复心肺功能', '改善身体耐力', '开始减脂塑形'],
+      exercises: phase3Exercises,
+      weeklyFrequency: 5,
+      color: 'text-violet-600',
+      gradient: 'from-violet-400 to-purple-500',
+    },
+    {
+      id: 'phase4' as RehabPhaseType,
+      name: '第四阶段 · 全面恢复',
+      description: '产后6个月以后，回归正常运动水平',
+      durationWeeks: 12,
+      goals: ['恢复孕前运动能力', '塑形美体', '增强体能', '建立长期运动习惯'],
+      exercises: phase4Exercises,
+      weeklyFrequency: 5,
+      color: 'text-fuchsia-600',
+      gradient: 'from-fuchsia-400 to-pink-500',
+    },
+  ];
+};
+
+const defaultRehabPlanId = generateId();
+const defaultRehabMilestones: RehabMilestone[] = [
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    phaseId: 'phase1',
+    title: '完成首次凯格尔训练',
+    description: '完成第一次盆底肌训练，唤醒肌肉记忆',
+    targetValue: 1,
+    currentValue: 1,
+    unit: '次',
+    achieved: true,
+    achievedDate: new Date(Date.now() - 12 * 86400000).toISOString().split('T')[0],
+    icon: '🏆',
+  },
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    phaseId: 'phase1',
+    title: '连续打卡7天',
+    description: '坚持每天完成训练打卡一周',
+    targetValue: 7,
+    currentValue: 3,
+    unit: '天',
+    achieved: false,
+    icon: '🔥',
+  },
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    phaseId: 'phase2',
+    title: '完成10次力量训练',
+    description: '累计完成10次力量重建训练',
+    targetValue: 10,
+    currentValue: 0,
+    unit: '次',
+    achieved: false,
+    icon: '💪',
+  },
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    phaseId: 'phase3',
+    title: '盆底肌评分达到80分',
+    description: '通过持续训练将盆底肌功能评分提升至80分',
+    targetValue: 80,
+    currentValue: 0,
+    unit: '分',
+    achieved: false,
+    icon: '⭐',
+  },
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    phaseId: 'phase4',
+    title: '腹直肌分离恢复至2指以内',
+    description: '通过核心训练将腹直肌分离缩小至2指以内',
+    targetValue: 2,
+    currentValue: 0,
+    unit: '指',
+    achieved: false,
+    icon: '🎯',
+  },
+];
+const defaultRehabPlans: RehabPlan[] = [
+  {
+    id: defaultRehabPlanId,
+    name: '产后综合康复计划',
+    type: 'postpartum',
+    startDate: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+    phases: buildDefaultRehabPhases(),
+    milestones: defaultRehabMilestones,
+    createdAt: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+    notes: '根据顺产情况定制的康复计划',
+  },
+];
+
+const mockRehabBodyMetrics: RehabBodyMetric[] = [
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    date: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+    weight: 62.5,
+    bellyCircumference: 82,
+    pelvicFloorScore: 45,
+    diastasisRecti: 3.5,
+  },
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    date: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
+    weight: 61.8,
+    bellyCircumference: 80,
+    pelvicFloorScore: 52,
+    diastasisRecti: 3.2,
+  },
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    date: new Date().toISOString().split('T')[0],
+    weight: 61.2,
+    bellyCircumference: 78,
+    pelvicFloorScore: 58,
+    diastasisRecti: 3.0,
+  },
+];
+
+const mockRehabCheckins: RehabCheckin[] = [
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    phaseId: 'phase1',
+    date: new Date().toISOString().split('T')[0],
+    time: '09:30',
+    completedExercises: ['p1-e1', 'p1-e2'],
+    totalDuration: 15,
+    painLevel: 1,
+    fatigueLevel: 2,
+    mood: 'good',
+    notes: '今天感觉不错，训练后很放松',
+  },
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    phaseId: 'phase1',
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    time: '20:00',
+    completedExercises: ['p1-e1', 'p1-e2', 'p1-e3'],
+    totalDuration: 18,
+    painLevel: 1,
+    fatigueLevel: 3,
+    mood: 'normal',
+  },
+  {
+    id: generateId(),
+    planId: defaultRehabPlanId,
+    phaseId: 'phase1',
+    date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0],
+    time: '10:00',
+    completedExercises: ['p1-e1'],
+    totalDuration: 8,
+    painLevel: 2,
+    fatigueLevel: 2,
+    mood: 'tired',
+    notes: '今天有些累，只做了呼吸训练',
+  },
+];
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -564,6 +942,10 @@ export const useAppStore = create<AppState>()(
       painRecords: mockPainRecords,
       familyMembers: mockFamilyMembers,
       shareCodes: mockShareCodes,
+      rehabPlans: defaultRehabPlans,
+      rehabCheckins: mockRehabCheckins,
+      rehabBodyMetrics: mockRehabBodyMetrics,
+      activeRehabPlanId: defaultRehabPlanId,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
@@ -2011,6 +2393,229 @@ export const useAppStore = create<AppState>()(
 
         return result;
       },
+
+      createRehabPlan: (plan: Omit<RehabPlan, 'id' | 'createdAt'>) => {
+        const newPlan: RehabPlan = {
+          ...plan,
+          id: generateId(),
+          createdAt: new Date().toISOString().split('T')[0],
+        };
+        set((state) => ({
+          rehabPlans: [...state.rehabPlans, newPlan],
+          activeRehabPlanId: state.activeRehabPlanId || newPlan.id,
+        }));
+        return newPlan;
+      },
+
+      updateRehabPlan: (id: string, data: Partial<RehabPlan>) =>
+        set((state) => ({
+          rehabPlans: state.rehabPlans.map((p) =>
+            p.id === id ? { ...p, ...data } : p
+          ),
+        })),
+
+      deleteRehabPlan: (id: string) =>
+        set((state) => ({
+          rehabPlans: state.rehabPlans.filter((p) => p.id !== id),
+          rehabCheckins: state.rehabCheckins.filter((c) => c.planId !== id),
+          activeRehabPlanId: state.activeRehabPlanId === id ? null : state.activeRehabPlanId,
+        })),
+
+      setActiveRehabPlan: (id: string | null) =>
+        set({ activeRehabPlanId: id }),
+
+      addRehabCheckin: (checkin: Omit<RehabCheckin, 'id'>) =>
+        set((state) => ({
+          rehabCheckins: [
+            ...state.rehabCheckins,
+            { ...checkin, id: generateId() },
+          ],
+        })),
+
+      getRehabCheckinsByPlan: (planId: string) => {
+        const { rehabCheckins } = get();
+        return rehabCheckins
+          .filter((c) => c.planId === planId)
+          .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+      },
+
+      getRehabCheckinsByDate: (date: string) => {
+        const { rehabCheckins } = get();
+        return rehabCheckins.filter((c) => c.date === date);
+      },
+
+      getCurrentRehabPhase: (planId: string): RehabPhase | null => {
+        const state = get();
+        const plan = state.rehabPlans.find((p) => p.id === planId);
+        if (!plan) return null;
+
+        const startDate = new Date(plan.startDate);
+        const now = new Date();
+        const daysSinceStart = diffDays(now, startDate);
+        const weeksSinceStart = daysSinceStart / 7;
+
+        let accumulatedWeeks = 0;
+        for (const phase of plan.phases) {
+          accumulatedWeeks += phase.durationWeeks;
+          if (weeksSinceStart <= accumulatedWeeks) {
+            return phase;
+          }
+        }
+        return plan.phases[plan.phases.length - 1];
+      },
+
+      getRehabProgress: (planId: string) => {
+        const state = get();
+        const plan = state.rehabPlans.find((p) => p.id === planId);
+        const checkins = state.rehabCheckins.filter((c) => c.planId === planId);
+        const currentPhase = state.getCurrentRehabPhase(planId);
+
+        const phaseProgress = {} as Record<RehabPhaseType, number>;
+        if (plan) {
+          const startDate = new Date(plan.startDate);
+          const now = new Date();
+          const daysSinceStart = diffDays(now, startDate);
+
+          let accumulatedDays = 0;
+          for (const phase of plan.phases) {
+            const phaseDays = phase.durationWeeks * 7;
+            const phaseStart = accumulatedDays;
+            const phaseEnd = accumulatedDays + phaseDays;
+
+            if (daysSinceStart <= phaseStart) {
+              phaseProgress[phase.id] = 0;
+            } else if (daysSinceStart >= phaseEnd) {
+              phaseProgress[phase.id] = 100;
+            } else {
+              phaseProgress[phase.id] = Math.round(
+                ((daysSinceStart - phaseStart) / phaseDays) * 100
+              );
+            }
+            accumulatedDays = phaseEnd;
+          }
+        }
+
+        const weekAgo = new Date(Date.now() - 7 * 86400000);
+        const weeklyCheckins = checkins.filter(
+          (c) => new Date(c.date) >= weekAgo
+        );
+
+        let streak = 0;
+        const checkinDates = new Set(checkins.map((c) => c.date));
+        let checkDate = new Date();
+        while (checkinDates.has(dateStr(checkDate))) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+
+        const milestones = plan?.milestones || [];
+        const milestonesAchieved = milestones.filter((m) => m.achieved).length;
+
+        return {
+          planId,
+          currentPhase: currentPhase?.id || 'phase1',
+          startDate: plan?.startDate || '',
+          totalCheckins: checkins.length,
+          weeklyStreak: streak,
+          phaseProgress,
+          milestonesAchieved,
+          totalMilestones: milestones.length,
+        };
+      },
+
+      getWeeklyRehabStats: (planId: string) => {
+        const state = get();
+        const weekAgo = new Date(Date.now() - 7 * 86400000);
+        const weekAgoStr = dateStr(weekAgo);
+        const checkins = state.rehabCheckins.filter(
+          (c) => c.planId === planId && c.date >= weekAgoStr
+        );
+
+        const completedDays = Array.from(new Set(checkins.map((c) => c.date)));
+        const totalMinutes = checkins.reduce((sum, c) => sum + c.totalDuration, 0);
+        const avgPain = checkins.length > 0
+          ? Number((checkins.reduce((sum, c) => sum + c.painLevel, 0) / checkins.length).toFixed(1))
+          : 0;
+
+        return {
+          checkins: checkins.length,
+          totalMinutes,
+          avgPain,
+          completedDays,
+        };
+      },
+
+      getDefaultRehabPlan: (type: RehabPlan['type']) => {
+        return {
+          name: type === 'postpartum' ? '产后综合康复计划' :
+                type === 'pelvic-floor' ? '盆底肌专项康复' :
+                type === 'core' ? '核心肌群康复计划' :
+                type === 'general' ? '通用康复计划' : '自定义康复计划',
+          type,
+          startDate: new Date().toISOString().split('T')[0],
+          phases: buildDefaultRehabPhases(),
+          milestones: [],
+        };
+      },
+
+      addRehabBodyMetric: (metric: Omit<RehabBodyMetric, 'id'>) =>
+        set((state) => ({
+          rehabBodyMetrics: [...state.rehabBodyMetrics, { ...metric, id: generateId() }],
+        })),
+
+      getRehabBodyMetricsByPlan: (planId: string) => {
+        const { rehabBodyMetrics } = get();
+        return rehabBodyMetrics
+          .filter((m) => m.planId === planId)
+          .sort((a, b) => a.date.localeCompare(b.date));
+      },
+
+      updateRehabMilestone: (planId: string, milestoneId: string, data: Partial<RehabMilestone>) =>
+        set((state) => ({
+          rehabPlans: state.rehabPlans.map((p) =>
+            p.id === planId
+              ? {
+                  ...p,
+                  milestones: (p.milestones || []).map((m) =>
+                    m.id === milestoneId ? { ...m, ...data } : m
+                  ),
+                }
+              : p
+          ),
+        })),
+
+      getRehabMilestonesByPlan: (planId: string) => {
+        const { rehabPlans } = get();
+        const plan = rehabPlans.find((p) => p.id === planId);
+        return plan?.milestones || [];
+      },
+
+      updateRehabWeeklyGoal: (planId: string, goalId: string, data: Partial<RehabWeeklyGoal>) =>
+        set((state) => ({
+          rehabPlans: state.rehabPlans.map((p) =>
+            p.id === planId
+              ? {
+                  ...p,
+                  weeklyGoals: (p.weeklyGoals || []).map((g) =>
+                    g.id === goalId ? { ...g, ...data } : g
+                  ),
+                }
+              : p
+          ),
+        })),
+
+      getRehabBodyMetricTrend: (planId: string) => {
+        const { rehabBodyMetrics } = get();
+        return rehabBodyMetrics
+          .filter((m) => m.planId === planId)
+          .map((m) => ({
+            date: m.date,
+            weight: m.weight,
+            pelvicFloorScore: m.pelvicFloorScore,
+            diastasisRecti: m.diastasisRecti,
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      },
     }),
     {
       name: 'her-cycle-storage',
@@ -2035,6 +2640,10 @@ export const useAppStore = create<AppState>()(
         painRecords: state.painRecords,
         familyMembers: state.familyMembers,
         shareCodes: state.shareCodes,
+        rehabPlans: state.rehabPlans,
+        rehabCheckins: state.rehabCheckins,
+        rehabBodyMetrics: state.rehabBodyMetrics,
+        activeRehabPlanId: state.activeRehabPlanId,
       }),
     }
   )
