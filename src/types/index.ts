@@ -35,11 +35,15 @@ export interface PredictionResult {
   confidenceLevel: 'low' | 'medium' | 'high';
   confidencePercent: number;
   ovulationDate: string;
+  adjustedOvulationDate?: string;
   fertileWindowStart: string;
   fertileWindowEnd: string;
+  adjustedFertileStart?: string;
+  adjustedFertileEnd?: string;
   daysUntilNextPeriod: number;
   cyclePhase: 'period' | 'follicular' | 'ovulation' | 'fertile' | 'luteal' | 'predicted_period';
   statistics: CycleStatistics;
+  conceptionProbabilities?: ConceptionProbability[];
 }
 
 export type CalendarDayType =
@@ -51,13 +55,33 @@ export type CalendarDayType =
   | 'predicted_late'
   | 'ovulation'
   | 'fertile'
+  | 'fertile_high'
+  | 'fertile_peak'
+  | 'lh_surge'
+  | 'temp_shift'
   | 'today';
+
+export interface ConceptionProbability {
+  date: string;
+  probability: number;
+  level: 'low' | 'medium' | 'high' | 'peak';
+  factors: {
+    cyclePrediction: number;
+    lhTest?: number;
+    basalTemp?: number;
+    cervicalMucus?: number;
+  };
+}
 
 export interface CalendarDayInfo {
   type: CalendarDayType;
   date: string;
   isToday: boolean;
   confidence?: number;
+  conceptionProbability?: number;
+  hasLHPositive?: boolean;
+  hasTempShift?: boolean;
+  hasRecord?: boolean;
 }
 
 export interface OvertimeRecord {
@@ -72,12 +96,17 @@ export interface OvertimeRecord {
   cyclePhase?: 'period' | 'follicular' | 'ovulation' | 'luteal';
 }
 
+export type LHResult = 'negative' | 'faint' | 'positive' | 'strong_positive' | 'none';
+
 export interface OvulationRecord {
   id: string;
   date: string;
   basalTemp?: number;
   cervicalMucus?: string;
   ovulationTest?: 'positive' | 'negative' | 'none';
+  lhTest?: LHResult;
+  lhIntensity?: number;
+  tempShift?: boolean;
   fertileWindow: boolean;
 }
 
@@ -835,6 +864,8 @@ export interface AppState {
   getCurrentWeek: () => number;
   getNextPeriodDate: () => string;
   getOvulationDate: () => string;
+  getAdjustedOvulationDate: () => string | null;
+  getConceptionProbability: (date: string) => ConceptionProbability | null;
   getDueDate: () => string;
   getDaysPostpartum: () => number;
   getPelvicFloorTrend: () => { date: string; count: number; avgDifficulty: number; totalDuration: number }[];

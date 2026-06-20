@@ -164,6 +164,10 @@ export default function TeenPage() {
       ),
       ovulation: 'bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-md shadow-purple-200/50',
       fertile: 'bg-violet-100 text-violet-700 border-2 border-violet-300',
+      fertile_high: 'bg-violet-200 text-violet-800 border-2 border-violet-400',
+      fertile_peak: 'bg-gradient-to-br from-violet-300 to-purple-400 text-white shadow-md border-violet-400',
+      lh_surge: 'bg-amber-200 text-amber-900 border-2 border-amber-400',
+      temp_shift: 'bg-orange-100 text-orange-700 border-2 border-orange-300',
       today: 'ring-2 ring-pink-400 ring-offset-2 text-gray-700 hover:bg-pink-50',
     };
     return cn(base, typeMap[info.type]);

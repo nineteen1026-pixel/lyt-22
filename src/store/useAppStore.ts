@@ -45,6 +45,7 @@ import type {
   RehabBodyMetric,
   RehabMilestone,
   RehabWeeklyGoal,
+  ConceptionProbability,
 } from '@/types';
 import { useNutritionStore } from '@/store/useNutritionStore';
 
@@ -478,6 +479,20 @@ const mockOvulationRecords: OvulationRecord[] = [
     basalTemp: 36.5,
     cervicalMucus: '蛋清状',
     ovulationTest: 'positive',
+    lhTest: 'strong_positive',
+    lhIntensity: 95,
+    tempShift: false,
+    fertileWindow: true,
+  },
+  {
+    id: generateId(),
+    date: '2024-01-26',
+    basalTemp: 36.8,
+    cervicalMucus: '蛋清状',
+    ovulationTest: 'positive',
+    lhTest: 'positive',
+    lhIntensity: 80,
+    tempShift: true,
     fertileWindow: true,
   },
 ];
@@ -1347,9 +1362,26 @@ export const useAppStore = create<AppState>()(
         })),
 
       addOvulationRecord: (record: OvulationRecord) =>
-        set((state) => ({
-          ovulationRecords: [...state.ovulationRecords, record],
-        })),
+        set((state) => {
+          let tempShift = record.tempShift;
+          if (record.basalTemp !== undefined && tempShift === undefined) {
+            const prevRecords = [...state.ovulationRecords]
+              .filter((r) => r.date < record.date && r.basalTemp !== undefined)
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .slice(0, 3);
+            if (prevRecords.length >= 2) {
+              const avgPrev =
+                prevRecords.reduce((sum, r) => sum + (r.basalTemp || 0), 0) / prevRecords.length;
+              if (record.basalTemp - avgPrev >= 0.2) {
+                tempShift = true;
+              }
+            }
+          }
+          const enriched: OvulationRecord = { ...record, tempShift };
+          return {
+            ovulationRecords: [...state.ovulationRecords, enriched],
+          };
+        }),
 
       addPrenatalCheckup: (checkup: PrenatalCheckup) =>
         set((state) => ({
@@ -1627,7 +1659,12 @@ export const useAppStore = create<AppState>()(
 
       getOvulationDate: () => {
         const pred = get().getPeriodPrediction();
-        return pred.ovulationDate;
+        return pred.adjustedOvulationDate || pred.ovulationDate;
+      },
+
+      getAdjustedOvulationDate: () => {
+        const pred = get().getPeriodPrediction();
+        return pred.adjustedOvulationDate || null;
       },
 
       extractPeriodStartDates: () => {
@@ -1784,19 +1821,150 @@ export const useAppStore = create<AppState>()(
         const fertileStart = addDays(ovulation, -5);
         const fertileEnd = addDays(ovulation, 1);
 
+        const ovuRecords = [...state.ovulationRecords].sort((a, b) => a.date.localeCompare(b.date));
+        const recordMap = new Map<string, OvulationRecord>();
+        ovuRecords.forEach((r) => recordMap.set(r.date, r));
+
+        const lhPositiveDates = ovuRecords.filter(
+          (r) => r.lhTest === 'positive' || r.lhTest === 'strong_positive'
+        );
+        let lhSurgeDate: Date | null = null;
+        if (lhPositiveDates.length > 0) {
+          const sortedByIntensity = [...lhPositiveDates].sort((a, b) => (b.lhIntensity || 0) - (a.lhIntensity || 0));
+          lhSurgeDate = new Date(sortedByIntensity[0].date);
+          lhSurgeDate.setHours(0, 0, 0, 0);
+        }
+
+        let tempShiftDate: Date | null = null;
+        const sortedRecords = [...ovuRecords].sort((a, b) => a.date.localeCompare(b.date));
+        for (let i = 3; i < sortedRecords.length; i++) {
+          const current = sortedRecords[i];
+          if (!current.basalTemp) continue;
+          const prevTemps: number[] = [];
+          for (let j = i - 3; j < i; j++) {
+            if (sortedRecords[j]?.basalTemp) prevTemps.push(sortedRecords[j].basalTemp);
+          }
+          if (prevTemps.length >= 2) {
+            const avgPrev = prevTemps.reduce((a, b) => a + b, 0) / prevTemps.length;
+            if (current.basalTemp - avgPrev >= 0.2) {
+              tempShiftDate = new Date(current.date);
+              tempShiftDate.setHours(0, 0, 0, 0);
+              break;
+            }
+          }
+        }
+
+        let adjustedOvulation: Date | null = null;
+        if (lhSurgeDate && tempShiftDate) {
+          const diff = Math.abs(diffDays(tempShiftDate, lhSurgeDate));
+          if (diff <= 2) {
+            adjustedOvulation = new Date(lhSurgeDate);
+            adjustedOvulation.setDate(adjustedOvulation.getDate() + 1);
+          } else {
+            adjustedOvulation = new Date(lhSurgeDate);
+            adjustedOvulation.setDate(adjustedOvulation.getDate() + 1);
+          }
+        } else if (lhSurgeDate) {
+          adjustedOvulation = new Date(lhSurgeDate);
+          adjustedOvulation.setDate(adjustedOvulation.getDate() + 1);
+        } else if (tempShiftDate) {
+          adjustedOvulation = new Date(tempShiftDate);
+          adjustedOvulation.setDate(adjustedOvulation.getDate() - 1);
+        }
+
+        let adjustedFertileStart: Date | null = null;
+        let adjustedFertileEnd: Date | null = null;
+        if (adjustedOvulation) {
+          adjustedFertileStart = addDays(adjustedOvulation, -5);
+          adjustedFertileEnd = addDays(adjustedOvulation, 1);
+        }
+
+        const effectiveOvulation = adjustedOvulation || ovulation;
+        const effectiveFertileStart = adjustedFertileStart || fertileStart;
+        const effectiveFertileEnd = adjustedFertileEnd || fertileEnd;
+
+        const lhScoreForDate = (d: Date): number => {
+          const rec = recordMap.get(dateStr(d));
+          if (!rec?.lhTest) return 0;
+          if (rec.lhTest === 'strong_positive') return 30;
+          if (rec.lhTest === 'positive') return 20;
+          if (rec.lhTest === 'faint') return 8;
+          return 0;
+        };
+
+        const tempScoreForDate = (d: Date): number => {
+          const rec = recordMap.get(dateStr(d));
+          if (!rec?.basalTemp) return 0;
+          const dist = Math.abs(diffDays(d, effectiveOvulation));
+          if (rec.tempShift && dist <= 1) return 15;
+          if (dist <= 2 && rec.basalTemp >= 36.6) return 8;
+          return 0;
+        };
+
+        const mucusScoreForDate = (d: Date): number => {
+          const rec = recordMap.get(dateStr(d));
+          if (!rec?.cervicalMucus) return 0;
+          if (rec.cervicalMucus === '蛋清状') return 15;
+          if (rec.cervicalMucus === '奶油状') return 8;
+          if (rec.cervicalMucus === '粘稠') return 3;
+          return 0;
+        };
+
+        const cycleScoreForDate = (d: Date): number => {
+          const dist = diffDays(d, effectiveOvulation);
+          if (dist === -1 || dist === 0) return 35;
+          if (dist === -2) return 30;
+          if (dist === -3) return 20;
+          if (dist === -4) return 12;
+          if (dist === -5) return 6;
+          if (dist === 1) return 8;
+          return 0;
+        };
+
+        const conceptionProbabilities: ConceptionProbability[] = [];
+        const probStart = addDays(effectiveFertileStart, -1);
+        const probEnd = addDays(effectiveFertileEnd, 1);
+        for (let d = new Date(probStart); d <= probEnd; d.setDate(d.getDate() + 1)) {
+          const ds = dateStr(new Date(d));
+          const cycleScore = cycleScoreForDate(new Date(d));
+          const lhScore = lhScoreForDate(new Date(d));
+          const tempScore = tempScoreForDate(new Date(d));
+          const mucusScore = mucusScoreForDate(new Date(d));
+          let total = cycleScore + lhScore + tempScore + mucusScore;
+          if (lhSurgeDate || tempShiftDate) {
+            total = Math.min(98, total * 1.1);
+          }
+          total = Math.min(98, Math.max(0, Math.round(total)));
+          let level: ConceptionProbability['level'] = 'low';
+          if (total >= 30) level = 'medium';
+          if (total >= 50) level = 'high';
+          if (total >= 75) level = 'peak';
+          conceptionProbabilities.push({
+            date: ds,
+            probability: total,
+            level,
+            factors: {
+              cyclePrediction: cycleScore,
+              lhTest: lhScore > 0 ? lhScore : undefined,
+              basalTemp: tempScore > 0 ? tempScore : undefined,
+              cervicalMucus: mucusScore > 0 ? mucusScore : undefined,
+            },
+          });
+        }
+
         const daysUntilNext = diffDays(predictedStart, todayD);
 
         let cyclePhase: PredictionResult['cyclePhase'] = 'follicular';
         const currentPeriodEnd = addDays(lastStart, periodLen - 1);
         if (todayD >= lastStart && todayD <= currentPeriodEnd) {
           cyclePhase = 'period';
-        } else if (todayD >= fertileStart && todayD <= fertileEnd) {
-          const diffO = diffDays(todayD, ovulation);
+        } else if (todayD >= effectiveFertileStart && todayD <= effectiveFertileEnd) {
+          const diffO = diffDays(todayD, effectiveOvulation);
           if (Math.abs(diffO) <= 1) cyclePhase = 'ovulation';
           else cyclePhase = 'fertile';
-        } else if (todayD > currentPeriodEnd && todayD < ovulation) {
+        } else if (todayD > currentPeriodEnd && todayD < effectiveOvulation) {
           cyclePhase = 'follicular';
-        } else if (todayD > fertileEnd && todayD < predictedStart) {
+        } else if (todayD > effectiveFertileEnd && todayD < predictedStart) {
           cyclePhase = 'luteal';
         } else if (todayD >= predictedStart && todayD <= predictedEnd) {
           cyclePhase = 'predicted_period';
@@ -1810,12 +1978,22 @@ export const useAppStore = create<AppState>()(
           confidenceLevel,
           confidencePercent,
           ovulationDate: dateStr(ovulation),
+          adjustedOvulationDate: adjustedOvulation ? dateStr(adjustedOvulation) : undefined,
           fertileWindowStart: dateStr(fertileStart),
           fertileWindowEnd: dateStr(fertileEnd),
+          adjustedFertileStart: adjustedFertileStart ? dateStr(adjustedFertileStart) : undefined,
+          adjustedFertileEnd: adjustedFertileEnd ? dateStr(adjustedFertileEnd) : undefined,
           daysUntilNextPeriod: daysUntilNext,
           cyclePhase,
           statistics: stats,
+          conceptionProbabilities,
         };
+      },
+
+      getConceptionProbability: (dateStrInput: string): ConceptionProbability | null => {
+        const pred = get().getPeriodPrediction();
+        if (!pred.conceptionProbabilities) return null;
+        return pred.conceptionProbabilities.find((p) => p.date === dateStrInput) || null;
       },
 
       getCalendarDayInfo: (year: number, month: number, day: number): CalendarDayInfo => {
@@ -1832,12 +2010,19 @@ export const useAppStore = create<AppState>()(
         const starts = state.extractPeriodStartDates();
         const periodLen = Math.round(pred.statistics.avgPeriodLength) || state.cycleData.periodLength;
 
+        const dayRecord = state.ovulationRecords.find((r) => r.date === dateString);
+        const hasRecord = !!dayRecord;
+        const hasLHPositive = !!(dayRecord && (dayRecord.lhTest === 'positive' || dayRecord.lhTest === 'strong_positive'));
+        const hasTempShift = !!dayRecord?.tempShift;
+
+        const conceptionProb = pred.conceptionProbabilities?.find((p) => p.date === dateString);
+
         for (const s of starts) {
           const sd = new Date(s);
           sd.setHours(0, 0, 0, 0);
           const ed = addDays(sd, periodLen - 1);
           if (date >= sd && date <= ed) {
-            return { type: 'period', date: dateString, isToday };
+            return { type: 'period', date: dateString, isToday, hasRecord, hasLHPositive, hasTempShift };
           }
         }
 
@@ -1850,7 +2035,7 @@ export const useAppStore = create<AppState>()(
           mid.setHours(0, 0, 0, 0);
           const d = Math.abs(diffDays(date, mid));
           const conf = Math.max(30, pred.confidencePercent - d * 8);
-          return { type: 'predicted_period', date: dateString, isToday, confidence: conf };
+          return { type: 'predicted_period', date: dateString, isToday, confidence: conf, hasRecord, hasLHPositive, hasTempShift };
         }
 
         const ciStart = new Date(pred.confidenceIntervalStart);
@@ -1860,29 +2045,44 @@ export const useAppStore = create<AppState>()(
         if (date >= ciStart && date < predStart) {
           const d = diffDays(predStart, date);
           const conf = Math.max(10, 60 - d * 10);
-          return { type: 'predicted_early', date: dateString, isToday, confidence: conf };
+          return { type: 'predicted_early', date: dateString, isToday, confidence: conf, hasRecord, hasLHPositive, hasTempShift };
         }
         if (date > predEnd && date <= ciEnd) {
           const d = diffDays(date, predEnd);
           const conf = Math.max(10, 60 - d * 10);
-          return { type: 'predicted_late', date: dateString, isToday, confidence: conf };
+          return { type: 'predicted_late', date: dateString, isToday, confidence: conf, hasRecord, hasLHPositive, hasTempShift };
         }
 
-        const ovuD = new Date(pred.ovulationDate);
+        const effectiveOvulationStr = pred.adjustedOvulationDate || pred.ovulationDate;
+        const ovuD = new Date(effectiveOvulationStr);
         ovuD.setHours(0, 0, 0, 0);
         if (diffDays(date, ovuD) === 0) {
-          return { type: 'ovulation', date: dateString, isToday };
+          return { type: 'ovulation', date: dateString, isToday, hasRecord, hasLHPositive, hasTempShift, conceptionProbability: conceptionProb?.probability };
         }
 
-        const fertS = new Date(pred.fertileWindowStart);
-        fertS.setHours(0, 0, 0, 0);
-        const fertE = new Date(pred.fertileWindowEnd);
-        fertE.setHours(0, 0, 0, 0);
-        if (date >= fertS && date <= fertE) {
-          return { type: 'fertile', date: dateString, isToday };
+        if (hasLHPositive) {
+          return { type: 'lh_surge', date: dateString, isToday, hasRecord, hasLHPositive, hasTempShift, conceptionProbability: conceptionProb?.probability };
         }
 
-        return { type: 'normal', date: dateString, isToday };
+        if (hasTempShift) {
+          return { type: 'temp_shift', date: dateString, isToday, hasRecord, hasLHPositive, hasTempShift, conceptionProbability: conceptionProb?.probability };
+        }
+
+        const effectiveFertStart = pred.adjustedFertileStart ? new Date(pred.adjustedFertileStart) : new Date(pred.fertileWindowStart);
+        effectiveFertStart.setHours(0, 0, 0, 0);
+        const effectiveFertEnd = pred.adjustedFertileEnd ? new Date(pred.adjustedFertileEnd) : new Date(pred.fertileWindowEnd);
+        effectiveFertEnd.setHours(0, 0, 0, 0);
+
+        if (date >= effectiveFertStart && date <= effectiveFertEnd) {
+          let dayType: CalendarDayInfo['type'] = 'fertile';
+          if (conceptionProb) {
+            if (conceptionProb.level === 'peak') dayType = 'fertile_peak';
+            else if (conceptionProb.level === 'high') dayType = 'fertile_high';
+          }
+          return { type: dayType, date: dateString, isToday, hasRecord, hasLHPositive, hasTempShift, conceptionProbability: conceptionProb?.probability };
+        }
+
+        return { type: 'normal', date: dateString, isToday, hasRecord, hasLHPositive, hasTempShift };
       },
 
       getHotFlashTrend: () => {
