@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Smile,
   Heart,
@@ -19,6 +20,7 @@ import {
   Play,
   RotateCcw,
   CheckCircle2,
+  Shield,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
@@ -142,6 +144,7 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export default function MoodPage() {
   const { moodRecords, addMoodRecord } = useAppStore();
+  const navigate = useNavigate();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedMood, setSelectedMood] = useState('平静');
   const [selectedEmotion, setSelectedEmotion] = useState('calm');
@@ -238,6 +241,13 @@ export default function MoodPage() {
             <h1 className="font-display text-3xl font-bold text-gray-800">情绪治愈</h1>
             <p className="text-gray-500">接纳每一种情绪，做情绪的好朋友</p>
           </div>
+          <button
+            onClick={() => navigate('/vault')}
+            className="ml-auto flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-full text-sm font-medium shadow-md hover:shadow-lg transition-all"
+          >
+            <Shield className="w-4 h-4" />
+            私密保险库
+          </button>
         </div>
       </div>
 

@@ -798,6 +798,24 @@ export interface RehabCheckin {
   photoUrl?: string;
 }
 
+export interface VaultEntry {
+  id: string;
+  date: string;
+  time: string;
+  emotion: string;
+  intensity: number;
+  content: string;
+  tags?: string[];
+  createdAt: string;
+}
+
+export interface VaultState {
+  entries: VaultEntry[];
+  pinHash: string | null;
+  isUnlocked: boolean;
+  currentPin: string | null;
+}
+
 export interface RehabProgress {
   planId: string;
   currentPhase: RehabPhaseType;

@@ -18,6 +18,7 @@ import FamilyViewer from "@/pages/FamilyViewer";
 import Community from "@/pages/Community";
 import CommunityDetail from "@/pages/CommunityDetail";
 import HealthReport from "@/pages/HealthReport";
+import Vault from "@/pages/Vault";
 import { MedicationReminderProvider } from "@/components/medication/MedicationReminderContext";
 
 export default function App() {
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/community" element={<Community />} />
             <Route path="/community/:id" element={<CommunityDetail />} />
             <Route path="/health-report" element={<HealthReport />} />
+            <Route path="/vault" element={<Vault />} />
           </Routes>
         </Layout>
       </MedicationReminderProvider>
