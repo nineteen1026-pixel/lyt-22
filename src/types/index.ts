@@ -544,6 +544,114 @@ export interface CommunityQuestion {
   hasFeaturedAnswer: boolean;
 }
 
+export type ReportRange = 'week' | 'month';
+
+export interface ModuleHealthScore {
+  module: string;
+  moduleName: string;
+  score: number;
+  maxScore: number;
+  trend: 'up' | 'down' | 'stable';
+  trendValue: number;
+  color: string;
+  icon: string;
+}
+
+export interface SleepReportData {
+  avgDuration: number;
+  avgQuality: number;
+  avgInterruptions: number;
+  nightSweatRate: number;
+  totalRecords: number;
+  weeklyTrend: { date: string; duration: number; quality: number }[];
+  phaseBreakdown: PhaseSleepStatistics[];
+}
+
+export interface NutritionReportData {
+  avgCalories: number;
+  calorieTarget: number;
+  avgProtein: number;
+  avgCarbs: number;
+  avgFat: number;
+  totalRecords: number;
+  weeklyTrend: { date: string; calories: number; protein: number }[];
+  topGaps: NutrientGapItem[];
+  averageGaps: NutrientGapItem[];
+}
+
+export interface CycleReportData {
+  avgCycleLength: number;
+  avgPeriodLength: number;
+  regularityScore: number;
+  cycleCount: number;
+  periodDays: number;
+  totalSymptomRecords: number;
+  commonSymptoms: { symptom: string; count: number }[];
+}
+
+export interface PostpartumReportData {
+  totalPelvicFloorSessions: number;
+  avgPelvicFloorDuration: number;
+  totalBreastfeedingSessions: number;
+  avgBreastfeedingDuration: number;
+  lochiaRecordsCount: number;
+  completedCheckups: number;
+  totalCheckups: number;
+  pelvicFloorTrend: { date: string; count: number; totalDuration: number }[];
+}
+
+export interface MedicationReportData {
+  totalReminders: number;
+  activeReminders: number;
+  adherenceRate: number;
+  totalTaken: number;
+  totalSkipped: number;
+  totalRecords: number;
+  adherenceByCategory: { category: MedicationCategory; rate: number; total: number; taken: number }[];
+}
+
+export interface MoodReportData {
+  totalRecords: number;
+  avgIntensity: number;
+  moodDistribution: { mood: string; count: number; emotion: string }[];
+  recentMoodTrend: { date: string; intensity: number; mood: string }[];
+}
+
+export interface PainReportData {
+  totalRecords: number;
+  avgLevel: number;
+  painDays: number;
+  severePainDays: number;
+  levelDistribution: { level: number; count: number }[];
+}
+
+export interface MenopauseReportData {
+  totalHotFlashRecords: number;
+  avgHotFlashSeverity: number;
+  avgHotFlashDuration: number;
+  hotFlashTrend: { date: string; count: number; avgSeverity: number }[];
+  hormoneRecordsCount: number;
+  latestHormones?: { date: string; estrogen?: number; progesterone?: number; fsh?: number; lh?: number };
+}
+
+export interface HealthReport {
+  generatedAt: string;
+  range: ReportRange;
+  startDate: string;
+  endDate: string;
+  overallScore: number;
+  moduleScores: ModuleHealthScore[];
+  keyInsights: { type: 'warning' | 'info' | 'good'; title: string; description: string; icon: string }[];
+  sleep?: SleepReportData;
+  nutrition?: NutritionReportData;
+  cycle?: CycleReportData;
+  postpartum?: PostpartumReportData;
+  medication?: MedicationReportData;
+  mood?: MoodReportData;
+  pain?: PainReportData;
+  menopause?: MenopauseReportData;
+}
+
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
