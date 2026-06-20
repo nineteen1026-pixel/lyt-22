@@ -16,11 +16,17 @@ import {
   ChevronRight,
   TrendingUp,
   Activity,
+  Upload,
+  AlertTriangle,
+  Info,
+  Download,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
-import type { OvulationRecord, LHResult, ConceptionProbability, CalendarDayInfo } from '@/types';
+import type { OvulationRecord, LHResult, ConceptionProbability, CalendarDayInfo, TemperatureAnomalyAlert } from '@/types';
 import { useNavigate } from 'react-router-dom';
+import TemperatureChart from '@/components/temperature/TemperatureChart';
+import TemperatureImport from '@/components/temperature/TemperatureImport';
 
 const prepTips = [
   {
@@ -102,6 +108,9 @@ export default function PregnancyPrepPage() {
     cycleData,
     medicationReminders,
     getTodayMedicationSchedule,
+    detectTemperatureAnomalies,
+    acknowledgeTemperatureAlert,
+    temperatureRecords,
   } = useAppStore();
   const navigate = useNavigate();
 
@@ -109,6 +118,9 @@ export default function PregnancyPrepPage() {
   const ovulationSchedule = getTodayMedicationSchedule().filter((s) => s.reminder.category === 'ovulation');
   const pendingOvPills = ovulationSchedule.filter((s) => !s.record?.taken && !s.record?.skipped);
   const takenOvPills = ovulationSchedule.filter((s) => s.record?.taken);
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'temperature' | 'calendar'>('overview');
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRecord, setNewRecord] = useState<Partial<OvulationRecord>>({
@@ -199,6 +211,26 @@ export default function PregnancyPrepPage() {
 
   const upcomingProbabilities = pred.conceptionProbabilities?.filter((p) => p.date >= todayStr).slice(0, 7) || [];
 
+  const tempAnomalies = detectTemperatureAnomalies();
+  const unackAnomalies = tempAnomalies.filter((a) => !a.acknowledged);
+
+  const pageTabs: { key: 'overview' | 'temperature' | 'calendar'; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
+    { key: 'overview', label: '备孕概览', icon: Heart, color: 'from-fuchsia-400 via-pink-400 to-rose-400' },
+    { key: 'temperature', label: '体温曲线', icon: Thermometer, color: 'from-rose-400 to-pink-500' },
+    { key: 'calendar', label: '排卵日历', icon: Calendar, color: 'from-mint-400 to-emerald-500' },
+  ];
+
+  const getSeverityColor = (severity: 'low' | 'medium' | 'high') => {
+    switch (severity) {
+      case 'high':
+        return 'bg-rose-50 border-rose-200 text-rose-800';
+      case 'medium':
+        return 'bg-amber-50 border-amber-200 text-amber-800';
+      default:
+        return 'bg-sky-50 border-sky-200 text-sky-800';
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -280,7 +312,159 @@ export default function PregnancyPrepPage() {
         </div>
       </div>
 
-      <div className="card p-6 mb-8 bg-gradient-to-br from-rose-50 to-pink-50">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        {pageTabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                'flex items-center gap-3 px-5 py-3 rounded-xl transition-all',
+                isActive
+                  ? cn('bg-gradient-to-r', tab.color, 'text-white shadow-lg')
+                  : 'bg-white border border-gray-200 text-gray-700 hover:border-mint-300 hover:shadow-md'
+              )}
+            >
+              <Icon className={cn('w-5 h-5', isActive ? 'text-white' : 'text-mint-500')} />
+              <div className="text-left">
+                <p className={cn('font-bold', isActive ? 'text-white' : 'text-gray-800')}>{tab.label}</p>
+                <p
+                  className={cn(
+                    'text-xs',
+                    isActive ? 'text-white/80' : 'text-gray-400'
+                  )}
+                >
+                  {tab.key === 'overview' && '关键指标+概率+记录'}
+                  {tab.key === 'temperature' && `共 ${temperatureRecords.length} 条记录`}
+                  {tab.key === 'calendar' && '日历+排卵标记'}
+                </p>
+              </div>
+              {tab.key === 'temperature' && unackAnomalies.length > 0 && (
+                <span
+                  className={cn(
+                    'ml-auto w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
+                    isActive ? 'bg-white text-rose-500' : 'bg-rose-500 text-white'
+                  )}
+                >
+                  {unackAnomalies.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {unackAnomalies.length > 0 && (
+        <div className="card p-4 mb-8 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-bold text-amber-900">
+                  体温异常提醒（{unackAnomalies.length} 条待确认）
+                </p>
+                {unackAnomalies.length > 3 && (
+                  <button
+                    onClick={() =>
+                      unackAnomalies.forEach((a) => acknowledgeTemperatureAlert(a.id))
+                    }
+                    className="text-xs text-amber-700 hover:text-amber-900 underline"
+                  >
+                    全部确认
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {unackAnomalies.slice(0, 6).map((alert: TemperatureAnomalyAlert) => (
+                  <div
+                    key={alert.id}
+                    className={cn(
+                      'p-3 rounded-lg border text-xs flex items-start justify-between gap-2',
+                      getSeverityColor(alert.severity)
+                    )}
+                  >
+                    <div className="flex-1">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <span>{alert.typeName}</span>
+                        <span className="opacity-60">· {alert.date}</span>
+                      </p>
+                      <p className="opacity-80 mt-1">{alert.description}</p>
+                      {alert.suggestion && (
+                        <p className="opacity-70 mt-1 italic">建议: {alert.suggestion}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => acknowledgeTemperatureAlert(alert.id)}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-white/60 hover:bg-white/80 opacity-90 hover:opacity-100 transition flex-shrink-0"
+                      title="确认此提醒"
+                    >
+                      确认
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'temperature' ? (
+        <div className="space-y-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <Thermometer className="w-6 h-6 text-rose-500" />
+                基础体温曲线
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                导入设备数据 · 自动检测排卵升高 · 同步到排卵日历
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-full text-sm font-medium shadow-md hover:shadow-lg transition-all"
+              >
+                <Upload className="w-4 h-4" />
+                导入体温
+              </button>
+            </div>
+          </div>
+
+          <TemperatureChart />
+
+          <div className="card p-6 bg-gradient-to-br from-orange-50 to-amber-50">
+            <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Info className="w-5 h-5 text-orange-500" />
+              体温驱动排卵日历说明
+            </h3>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li className="flex items-start gap-2">
+                <span className="text-orange-400 mt-0.5">•</span>
+                <span>导入体温后，系统自动检测基础体温升高（≥ 0.2°C 且持续），标记为 <strong>体温升高日</strong>。</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-400 mt-0.5">•</span>
+                <span>排卵日将根据体温升高日向前修正，日历格显示
+                  <span className="mx-1 px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-xs">体温升高</span>
+                  角标与橙点标记。
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-400 mt-0.5">•</span>
+                <span>当前共 <strong className="text-orange-600">{temperatureRecords.length}</strong> 条体温记录，
+                  已同步 <strong className="text-orange-600">{ovulationRecords.filter((r) => r.basalTemp !== undefined).length}</strong> 天至排卵日历。</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ) : null}
+
+      {activeTab !== 'temperature' ? (
+        <>
+          <div className="card p-6 mb-8 bg-gradient-to-br from-rose-50 to-pink-50">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
             <TrendingUp className="w-5 h-5 text-rose-500" />
@@ -578,6 +762,8 @@ export default function PregnancyPrepPage() {
           </div>
         </div>
       </div>
+        </>
+      ) : null}
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -730,6 +916,28 @@ export default function PregnancyPrepPage() {
                   保存
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl max-h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Thermometer className="w-5 h-5 text-rose-500" />
+                基础体温导入
+              </h3>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <TemperatureImport onClose={() => setShowImportModal(false)} />
             </div>
           </div>
         </div>

@@ -12,10 +12,16 @@ import {
   ChevronDown,
   ChevronUp,
   Zap,
+  AlertCircle,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
-import { parseCSVFile, discoverBluetoothDevices } from '@/services/temperatureImport';
+import {
+  parseCSVFile,
+  discoverBluetoothDevices,
+  readBluetoothTemperature,
+  isWebBluetoothSupported,
+} from '@/services/temperatureImport';
 import type { TemperatureImportResult, BluetoothDeviceInfo } from '@/types';
 
 type ImportTab = 'csv' | 'bluetooth' | 'manual';
@@ -34,6 +40,8 @@ export default function TemperatureImport({ onClose }: { onClose?: () => void })
   const [isImporting, setIsImporting] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [discoveredDevices, setDiscoveredDevices] = useState<BluetoothDeviceInfo[]>([]);
+  const [scanWarning, setScanWarning] = useState<string | null>(null);
+  const [isSimulated, setIsSimulated] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [csvSeparator, setCsvSeparator] = useState<',' | ';' | '\t'>(',');
   const [hasHeader, setHasHeader] = useState(true);
@@ -41,6 +49,7 @@ export default function TemperatureImport({ onClose }: { onClose?: () => void })
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
   const [manualTime, setManualTime] = useState('06:30');
   const [manualMethod, setManualMethod] = useState('oral');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,45 +94,57 @@ export default function TemperatureImport({ onClose }: { onClose?: () => void })
     }
   };
 
-  const handleScanBluetooth = () => {
+  const handleScanBluetooth = async () => {
     setIsScanning(true);
     setDiscoveredDevices([]);
+    setScanWarning(null);
 
-    setTimeout(() => {
-      const devices = discoverBluetoothDevices();
-      setDiscoveredDevices(devices);
+    try {
+      const result = await discoverBluetoothDevices();
+      setDiscoveredDevices(result.devices);
+      setIsSimulated(result.isSimulated);
+      if (result.warning) setScanWarning(result.warning);
+    } catch (err: any) {
+      setScanWarning(err?.message || '扫描蓝牙设备时发生错误');
+    } finally {
       setIsScanning(false);
-    }, 1500);
+    }
   };
 
-  const handleConnectDevice = (device: BluetoothDeviceInfo) => {
+  const handleConnectDevice = async (device: BluetoothDeviceInfo) => {
+    setIsSyncing(true);
     const existing = bluetoothDevices.find((d) => d.id === device.id);
     if (!existing) {
-      addBluetoothDevice(device);
+      addBluetoothDevice({ ...device, lastConnected: new Date().toISOString().split('T')[0] });
     }
 
-    const mockTemp = 36.3 + Math.random() * 0.4;
-    addTemperatureRecords([
-      {
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toTimeString().slice(0, 5),
-        temperature: Math.round(mockTemp * 100) / 100,
-        source: 'bluetooth',
-        method: 'oral',
-        deviceId: device.id,
-        deviceName: device.name,
-        basalTemp: true,
-      },
-    ]);
+    try {
+      const record = await readBluetoothTemperature(device.id, device.name);
+      if (record) {
+        const { id, ...rest } = record;
+        addTemperatureRecords([rest]);
 
-    setImportResult({
-      success: true,
-      totalRecords: 1,
-      importedRecords: 1,
-      skippedRecords: 0,
-      errorRecords: [],
-      newRecords: [],
-    });
+        setImportResult({
+          success: true,
+          totalRecords: 1,
+          importedRecords: 1,
+          skippedRecords: 0,
+          errorRecords: [],
+          newRecords: [],
+        });
+      }
+    } catch (err: any) {
+      setImportResult({
+        success: false,
+        totalRecords: 0,
+        importedRecords: 0,
+        skippedRecords: 1,
+        errorRecords: [{ line: 0, reason: err?.message || '读取设备数据失败' }],
+        newRecords: [],
+      });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleManualAdd = () => {
@@ -298,14 +319,47 @@ export default function TemperatureImport({ onClose }: { onClose?: () => void })
 
       {activeTab === 'bluetooth' && (
         <div className="space-y-4">
+          {!isWebBluetoothSupported() && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">当前浏览器不支持 Web Bluetooth</p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    蓝牙功能目前以模拟模式运行。建议使用 Chrome / Edge / Opera 浏览器，并通过 HTTPS 或 localhost 访问以使用真实蓝牙功能。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {scanWarning && (
+            <div className="p-4 bg-sky-50 border border-sky-200 rounded-xl">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-sky-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-sky-800">提示</p>
+                  <p className="text-xs text-sky-600 mt-1">{scanWarning}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="p-4 bg-gradient-to-r from-sky-50 to-cyan-50 rounded-xl">
             <div className="flex items-start gap-3">
               <Info className="w-5 h-5 text-sky-500 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-sky-800">蓝牙连接说明</p>
+                <p className="text-sm font-medium text-sky-800">
+                  蓝牙连接说明
+                  {isSimulated && (
+                    <span className="ml-2 inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] align-middle">
+                      模拟模式
+                    </span>
+                  )}
+                </p>
                 <p className="text-xs text-sky-600 mt-1">
-                  确保蓝牙体温计已开启并处于配对模式，点击扫描按钮附近的设备。
-                  首次连接需要在设备上确认配对。
+                  确保蓝牙体温计已开启并处于配对模式，点击扫描按钮在系统弹窗中选择要配对的设备。
+                  模拟模式下将展示演示设备，点击连接会生成模拟体温数据。
                 </p>
               </div>
             </div>
@@ -327,7 +381,14 @@ export default function TemperatureImport({ onClose }: { onClose?: () => void })
 
           {discoveredDevices.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">发现的设备</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-700">发现的设备</p>
+                {isSimulated && (
+                  <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px]">
+                    模拟数据
+                  </span>
+                )}
+              </div>
               {discoveredDevices.map((device) => (
                 <div
                   key={device.id}
@@ -338,7 +399,12 @@ export default function TemperatureImport({ onClose }: { onClose?: () => void })
                       <Thermometer className="w-5 h-5 text-sky-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-800">{device.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-800">{device.name}</p>
+                        {device.isSimulated && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">模拟</span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500">
                         {device.brand} · {device.model}
                         {device.batteryLevel !== undefined && ` · ${device.batteryLevel}%`}
@@ -347,7 +413,13 @@ export default function TemperatureImport({ onClose }: { onClose?: () => void })
                   </div>
                   <button
                     onClick={() => handleConnectDevice(device)}
-                    className="px-4 py-2 bg-sky-500 text-white text-sm rounded-lg hover:bg-sky-600 transition-colors"
+                    disabled={isSyncing}
+                    className={cn(
+                      'px-4 py-2 text-white text-sm rounded-lg transition-colors',
+                      isSyncing
+                        ? 'bg-gray-300 cursor-not-allowed'
+                        : 'bg-sky-500 hover:bg-sky-600'
+                    )}
                   >
                     连接
                   </button>
@@ -369,7 +441,12 @@ export default function TemperatureImport({ onClose }: { onClose?: () => void })
                       <CheckCircle className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-800">{device.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-800">{device.name}</p>
+                        {device.isSimulated && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">模拟</span>
+                        )}
+                      </div>
                       <p className="text-xs text-emerald-600">
                         已连接 · 电量 {device.batteryLevel || '?'}%
                       </p>
@@ -377,10 +454,16 @@ export default function TemperatureImport({ onClose }: { onClose?: () => void })
                   </div>
                   <button
                     onClick={() => handleConnectDevice(device)}
-                    className="px-3 py-1.5 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1"
+                    disabled={isSyncing}
+                    className={cn(
+                      'px-3 py-1.5 text-white text-sm rounded-lg transition-colors flex items-center gap-1',
+                      isSyncing
+                        ? 'bg-gray-300 cursor-not-allowed'
+                        : 'bg-emerald-500 hover:bg-emerald-600'
+                    )}
                   >
                     <Zap className="w-3 h-3" />
-                    同步数据
+                    {isSyncing ? '同步中' : '同步数据'}
                   </button>
                 </div>
               ))}

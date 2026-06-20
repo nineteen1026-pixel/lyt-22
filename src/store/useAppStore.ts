@@ -60,6 +60,7 @@ import {
   calculateTemperatureStatistics,
   generateTemperatureTrend,
   mergeRecords,
+  syncTemperatureToOvulation,
 } from '@/services/temperatureImport';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -3334,18 +3335,71 @@ export const useAppStore = create<AppState>()(
         set((state) => {
           const newRecord = { ...record, id: generateId() };
           const merged = mergeRecords(state.temperatureRecords, [newRecord]);
-          return { temperatureRecords: merged };
+          const syncItems = syncTemperatureToOvulation(merged);
+          const existingOvDates = new Set(state.ovulationRecords.map((r) => r.date));
+          const newOvRecords = syncItems
+            .filter((s) => !existingOvDates.has(s.date))
+            .map((s) => ({
+              id: s.id,
+              date: s.date,
+              basalTemp: s.basalTemp,
+              tempShift: s.tempShift,
+              fertileWindow: s.fertileWindow,
+              cervicalMucus: undefined,
+              ovulationTest: 'none' as const,
+              lhTest: 'none' as const,
+            }));
+          const updatedOv = state.ovulationRecords.map((ov) => {
+            const sync = syncItems.find((s) => s.date === ov.date);
+            if (!sync) return ov;
+            return {
+              ...ov,
+              basalTemp: ov.basalTemp ?? sync.basalTemp,
+              tempShift: ov.tempShift || sync.tempShift,
+              fertileWindow: ov.fertileWindow || sync.fertileWindow,
+            };
+          });
+          return {
+            temperatureRecords: merged,
+            ovulationRecords: [...updatedOv, ...newOvRecords],
+          };
         }),
 
       addTemperatureRecords: (records: Omit<TemperatureRecord, 'id'>[]) => {
         const newRecords = records.map((r) => ({ ...r, id: generateId() }));
-        let result: TemperatureRecord[] = [];
+        let merged: TemperatureRecord[] = [];
         set((state) => {
-          const merged = mergeRecords(state.temperatureRecords, newRecords);
-          result = merged;
-          return { temperatureRecords: merged };
+          merged = mergeRecords(state.temperatureRecords, newRecords);
+          const syncItems = syncTemperatureToOvulation(merged);
+          const existingOvDates = new Set(state.ovulationRecords.map((r) => r.date));
+          const newOvRecords = syncItems
+            .filter((s) => !existingOvDates.has(s.date))
+            .map((s) => ({
+              id: s.id,
+              date: s.date,
+              basalTemp: s.basalTemp,
+              tempShift: s.tempShift,
+              fertileWindow: s.fertileWindow,
+              cervicalMucus: undefined,
+              ovulationTest: 'none' as const,
+              lhTest: 'none' as const,
+            }));
+          const updatedOv = state.ovulationRecords.map((ov) => {
+            const sync = syncItems.find((s) => s.date === ov.date);
+            if (!sync) return ov;
+            return {
+              ...ov,
+              basalTemp: ov.basalTemp ?? sync.basalTemp,
+              tempShift: ov.tempShift || sync.tempShift,
+              fertileWindow: ov.fertileWindow || sync.fertileWindow,
+            };
+          });
+          return {
+            temperatureRecords: merged,
+            ovulationRecords: [...updatedOv, ...newOvRecords],
+          };
         });
-        return result;
+        return merged;
       },
 
       deleteTemperatureRecord: (id: string) =>

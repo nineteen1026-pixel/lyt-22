@@ -906,6 +906,13 @@ export interface BluetoothDeviceInfo {
   model?: string;
   lastConnected?: string;
   batteryLevel?: number;
+  isSimulated?: boolean;
+}
+
+export interface BluetoothScanResult {
+  devices: BluetoothDeviceInfo[];
+  isSimulated: boolean;
+  warning?: string;
 }
 
 export interface CSVColumnMapping {

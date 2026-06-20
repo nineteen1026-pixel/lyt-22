@@ -4,6 +4,7 @@ import type {
   CSVColumnMapping,
   TemperatureImportResult,
   BluetoothDeviceInfo,
+  BluetoothScanResult,
   TemperatureStatistics,
   CyclePhase,
 } from '@/types';
@@ -533,6 +534,9 @@ export function detectTempShift(records: TemperatureRecord[]): {
   tempShiftDetected: boolean;
   tempShiftIndex: number;
   tempShiftDate?: string;
+  follicularPhaseAvg?: number;
+  lutealPhaseAvg?: number;
+  tempDiff?: number;
 } {
   const sorted = [...records]
     .filter((r) => r.basalTemp)
@@ -550,10 +554,26 @@ export function detectTempShift(records: TemperatureRecord[]): {
     const nextAvg = nextTemps.reduce((a, b) => a + b, 0) / nextTemps.length;
 
     if (nextAvg - prevAvg >= 0.2 && nextTemps.every((t) => t > prevAvg + 0.15)) {
+      const follicularTemps = sorted.slice(0, i).map((r) => r.temperature);
+      const lutealTemps = sorted.slice(i).map((r) => r.temperature);
+      const follicularPhaseAvg =
+        follicularTemps.length > 0
+          ? follicularTemps.reduce((a, b) => a + b, 0) / follicularTemps.length
+          : undefined;
+      const lutealPhaseAvg =
+        lutealTemps.length > 0
+          ? lutealTemps.reduce((a, b) => a + b, 0) / lutealTemps.length
+          : undefined;
       return {
         tempShiftDetected: true,
         tempShiftIndex: i,
         tempShiftDate: sorted[i].date,
+        follicularPhaseAvg,
+        lutealPhaseAvg,
+        tempDiff:
+          follicularPhaseAvg !== undefined && lutealPhaseAvg !== undefined
+            ? lutealPhaseAvg - follicularPhaseAvg
+            : undefined,
       };
     }
   }
@@ -648,6 +668,63 @@ export function calculateTemperatureStatistics(
   };
 }
 
+export interface OvulationSyncItem {
+  id: string;
+  date: string;
+  basalTemp?: number;
+  tempShift?: boolean;
+  fertileWindow: boolean;
+}
+
+export function syncTemperatureToOvulation(
+  records: TemperatureRecord[]
+): OvulationSyncItem[] {
+  const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+
+  const shift = detectTempShift(sorted);
+  const tempShiftDates = new Set<string>();
+  if (shift.tempShiftDate) {
+    tempShiftDates.add(shift.tempShiftDate);
+    const d = new Date(shift.tempShiftDate);
+    d.setDate(d.getDate() + 1);
+    tempShiftDates.add(d.toISOString().split('T')[0]);
+  }
+
+  const follicularAvg = shift.follicularPhaseAvg;
+  const synced: OvulationSyncItem[] = [];
+
+  for (const rec of sorted) {
+    const isBasal = rec.basalTemp || (rec.time && rec.time >= '04:00' && rec.time <= '08:00');
+    if (!isBasal) continue;
+
+    let tempShift = false;
+    if (tempShiftDates.has(rec.date)) tempShift = true;
+    if (!tempShift && follicularAvg !== undefined && rec.temperature - follicularAvg >= 0.2) {
+      tempShift = true;
+    }
+
+    let fertileWindow = false;
+    const recDate = new Date(rec.date);
+    if (shift.tempShiftDate) {
+      const shiftDate = new Date(shift.tempShiftDate);
+      const diff = (shiftDate.getTime() - recDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diff >= -1 && diff <= 5) fertileWindow = true;
+    } else if (follicularAvg !== undefined && rec.temperature - follicularAvg < 0.1) {
+      fertileWindow = true;
+    }
+
+    synced.push({
+      id: generateId(),
+      date: rec.date,
+      basalTemp: rec.temperature,
+      tempShift,
+      fertileWindow,
+    });
+  }
+
+  return synced;
+}
+
 export function generateTemperatureTrend(
   records: TemperatureRecord[],
   days: number = 30
@@ -689,27 +766,236 @@ export const bluetoothDeviceProfiles: Record<string, Partial<BluetoothDeviceInfo
   },
 };
 
-export function discoverBluetoothDevices(): BluetoothDeviceInfo[] {
-  const mockDevices: BluetoothDeviceInfo[] = [
-    {
-      id: 'bt-001',
-      name: 'MCH智能体温计',
-      macAddress: 'AA:BB:CC:DD:EE:01',
-      brand: 'MCH健康',
-      model: 'T1',
-      batteryLevel: 85,
-    },
-    {
-      id: 'bt-002',
-      name: 'BasalPro 基础体温计',
-      macAddress: 'AA:BB:CC:DD:EE:02',
-      brand: 'BasalPro',
-      model: 'Pro-200',
-      batteryLevel: 62,
-    },
-  ];
+export function resolveDeviceBrand(_id: string, name?: string): string | undefined {
+  if (!name) return undefined;
+  for (const key of Object.keys(bluetoothDeviceProfiles)) {
+    const profile = bluetoothDeviceProfiles[key];
+    if (profile.brand && name.includes(profile.brand)) return profile.brand;
+    if (profile.model && name.includes(profile.model)) return profile.brand;
+  }
+  if (name.toLowerCase().includes('mch') || name.includes('MCH')) return 'MCH健康';
+  if (name.toLowerCase().includes('basal') || name.includes('基础')) return 'BasalPro';
+  if (name.toLowerCase().includes('smart') || name.includes('智温')) return '智温';
+  return undefined;
+}
 
-  return mockDevices;
+export function isWebBluetoothSupported(): boolean {
+  return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
+}
+
+const HEALTH_THERMOMETER_SERVICE = 0x1809;
+const TEMPERATURE_MEASUREMENT_CHAR = 0x2A1C;
+const BATTERY_SERVICE = 0x180F;
+const BATTERY_LEVEL_CHAR = 0x2A19;
+const DEVICE_INFORMATION_SERVICE = 0x180A;
+const MANUFACTURER_NAME_CHAR = 0x2A29;
+const MODEL_NUMBER_CHAR = 0x2A24;
+
+export async function discoverBluetoothDevices(): Promise<BluetoothScanResult> {
+  if (!isWebBluetoothSupported()) {
+    const mockDevices: BluetoothDeviceInfo[] = [
+      {
+        id: 'sim-bt-001',
+        name: 'MCH智能体温计',
+        macAddress: 'AA:BB:CC:DD:EE:01',
+        brand: 'MCH健康',
+        model: 'T1',
+        batteryLevel: 85,
+        isSimulated: true,
+      },
+      {
+        id: 'sim-bt-002',
+        name: 'BasalPro 基础体温计',
+        macAddress: 'AA:BB:CC:DD:EE:02',
+        brand: 'BasalPro',
+        model: 'Pro-200',
+        batteryLevel: 62,
+        isSimulated: true,
+      },
+    ];
+    return {
+      devices: mockDevices,
+      isSimulated: true,
+      warning:
+        '当前浏览器不支持 Web Bluetooth API，已切换至模拟模式。请使用 Chrome / Edge / Opera 等支持的浏览器，并确保通过 HTTPS 或 localhost 访问。',
+    };
+  }
+
+  try {
+    const device = await (navigator as any).bluetooth.requestDevice({
+      filters: [
+        { services: [HEALTH_THERMOMETER_SERVICE] },
+        { namePrefix: 'MCH' },
+        { namePrefix: 'Basal' },
+        { namePrefix: 'Temp' },
+      ],
+      optionalServices: [
+        HEALTH_THERMOMETER_SERVICE,
+        BATTERY_SERVICE,
+        DEVICE_INFORMATION_SERVICE,
+      ],
+    });
+
+    let batteryLevel: number | undefined;
+    let manufacturer: string | undefined;
+    let modelNumber: string | undefined;
+
+    if (device.gatt && device.gatt.connected) {
+      try {
+        const server = await device.gatt.connect();
+
+        try {
+          const battService = await server.getPrimaryService(BATTERY_SERVICE);
+          const battChar = await battService.getCharacteristic(BATTERY_LEVEL_CHAR);
+          const battValue = await battChar.readValue();
+          batteryLevel = battValue.getUint8(0);
+        } catch (_) {}
+
+        try {
+          const devInfoService = await server.getPrimaryService(DEVICE_INFORMATION_SERVICE);
+          try {
+            const manuChar = await devInfoService.getCharacteristic(MANUFACTURER_NAME_CHAR);
+            const manuValue = await manuChar.readValue();
+            manufacturer = new TextDecoder().decode(manuValue);
+          } catch (_) {}
+          try {
+            const modelChar = await devInfoService.getCharacteristic(MODEL_NUMBER_CHAR);
+            const modelValue = await modelChar.readValue();
+            modelNumber = new TextDecoder().decode(modelValue);
+          } catch (_) {}
+        } catch (_) {}
+
+        await server.disconnect();
+      } catch (_) {}
+    }
+
+    const btDevice: BluetoothDeviceInfo = {
+      id: device.id,
+      name: device.name || '未知蓝牙体温计',
+      brand: manufacturer || resolveDeviceBrand(device.id, device.name),
+      model: modelNumber,
+      batteryLevel,
+      lastConnected: new Date().toISOString().split('T')[0],
+      isSimulated: false,
+    };
+
+    return {
+      devices: [btDevice],
+      isSimulated: false,
+    };
+  } catch (err: any) {
+    if (err?.name === 'NotFoundError' || err?.name === 'UserCancelled') {
+      const mockDevices: BluetoothDeviceInfo[] = [
+        {
+          id: 'sim-bt-001',
+          name: 'MCH智能体温计',
+          macAddress: 'AA:BB:CC:DD:EE:01',
+          brand: 'MCH健康',
+          model: 'T1',
+          batteryLevel: 85,
+          isSimulated: true,
+        },
+        {
+          id: 'sim-bt-002',
+          name: 'BasalPro 基础体温计',
+          macAddress: 'AA:BB:CC:DD:EE:02',
+          brand: 'BasalPro',
+          model: 'Pro-200',
+          batteryLevel: 62,
+          isSimulated: true,
+        },
+      ];
+      return {
+        devices: mockDevices,
+        isSimulated: true,
+        warning:
+          '未选择设备或扫描取消，展示模拟设备列表。真实设备需要在弹出的对话框中选择授权。',
+      };
+    }
+
+    throw err;
+  }
+}
+
+export async function readBluetoothTemperature(
+  deviceId: string,
+  deviceName?: string
+): Promise<TemperatureRecord | null> {
+  if (!isWebBluetoothSupported() || deviceId.startsWith('sim-')) {
+    await new Promise((r) => setTimeout(r, 600));
+    const temp = 36.3 + Math.random() * 0.4;
+    const now = new Date();
+    return {
+      id: generateId(),
+      date: now.toISOString().split('T')[0],
+      time: now.toTimeString().slice(0, 5),
+      temperature: Math.round(temp * 100) / 100,
+      source: 'bluetooth',
+      method: 'oral',
+      deviceId,
+      deviceName: deviceName || '模拟蓝牙体温计',
+      basalTemp: true,
+      notes: deviceId.startsWith('sim-') ? '模拟数据（Web Bluetooth 不可用）' : undefined,
+    };
+  }
+
+  try {
+    const device = await (navigator as any).bluetooth.requestDevice({
+      filters: [{ deviceId }],
+      optionalServices: [HEALTH_THERMOMETER_SERVICE, BATTERY_SERVICE],
+    });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(HEALTH_THERMOMETER_SERVICE);
+    const char = await service.getCharacteristic(TEMPERATURE_MEASUREMENT_CHAR);
+
+    let temperatureCelsius: number | null = null;
+    const listener = (event: any) => {
+      const value = event.target.value;
+      const flags = value.getUint8(0);
+      const celsius = (flags & 0x01) === 0;
+      let temp = value.getFloat32(1, true);
+      if (!celsius) {
+        temp = ((temp - 32) * 5) / 9;
+      }
+      temperatureCelsius = Math.round(temp * 100) / 100;
+    };
+    await char.startNotifications();
+    char.addEventListener('characteristicvaluechanged', listener);
+
+    const timeout = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error('读取体温超时，请确保设备已处于测量状态')), 15000)
+    );
+    const waitForTemp = new Promise<number>((resolve) => {
+      const id = setInterval(() => {
+        if (temperatureCelsius !== null) {
+          clearInterval(id);
+          resolve(temperatureCelsius);
+        }
+      }, 200);
+    });
+
+    const temp = await Promise.race([waitForTemp, timeout]);
+    char.removeEventListener('characteristicvaluechanged', listener);
+    await char.stopNotifications();
+    await server.disconnect();
+
+    if (temp === null) return null;
+    const now = new Date();
+    return {
+      id: generateId(),
+      date: now.toISOString().split('T')[0],
+      time: now.toTimeString().slice(0, 5),
+      temperature: temp as number,
+      source: 'bluetooth',
+      method: 'oral',
+      deviceId,
+      deviceName: device.name || deviceName,
+      basalTemp: true,
+    };
+  } catch (err) {
+    throw err;
+  }
 }
 
 export function generateMockTemperatureRecords(days: number = 30): TemperatureRecord[] {
