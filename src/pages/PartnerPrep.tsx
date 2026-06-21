@@ -20,16 +20,74 @@ import {
   Smile,
   BookOpen,
   EyeOff,
+  Moon,
+  Dumbbell,
+  Leaf,
+  UtensilsCrossed,
+  AlertCircle,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
 import OvulationWindowSharing from '@/components/partner-prep/OvulationWindowSharing';
 import PartnerTaskBoard from '@/components/partner-prep/PartnerTaskBoard';
 import PartnerPermissionManager from '@/components/partner-prep/PartnerPermissionManager';
-import type { PartnerPrepPermissionConfig } from '@/types';
+import type { PartnerPrepPermissionConfig, PartnerPrepTask, MedicationReminder, MoodRecord, PrenatalCheckup, SleepRecord } from '@/types';
 
 type ViewRole = 'female' | 'partner';
 type TabType = 'overview' | 'tasks' | 'ovulation' | 'permissions';
+
+const FULL_PERMISSIONS: PartnerPrepPermissionConfig = {
+  ovulation_window: true,
+  conception_probability: true,
+  temperature_curve: true,
+  lh_test: true,
+  task_details: true,
+  task_completion: true,
+  medication_plan: true,
+  checkup_schedule: true,
+  mood_status: true,
+  lifestyle_notes: true,
+};
+
+const moodEmojiMap: Record<string, string> = {
+  开心: '😊',
+  愉快: '😄',
+  平静: '😌',
+  平静放松: '😌',
+  焦虑: '😟',
+  担心: '😟',
+  低落: '😔',
+  难过: '😢',
+  疲惫: '😩',
+  累: '😩',
+  烦躁: '😤',
+  生气: '😠',
+  幸福: '🥰',
+  期待: '🤗',
+};
+
+function defaultPerms(): PartnerPrepPermissionConfig {
+  return {
+    ovulation_window: true,
+    conception_probability: true,
+    temperature_curve: false,
+    lh_test: false,
+    task_details: true,
+    task_completion: true,
+    medication_plan: true,
+    checkup_schedule: true,
+    mood_status: false,
+    lifestyle_notes: true,
+  };
+}
+
+function daysBetween(dateA: string, dateB: string): number {
+  const a = new Date(dateA);
+  const b = new Date(dateB);
+  a.setHours(0, 0, 0, 0);
+  b.setHours(0, 0, 0, 0);
+  return Math.round((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
+}
 
 export default function PartnerPrep() {
   const {
@@ -39,6 +97,11 @@ export default function PartnerPrep() {
     refreshOvulationWindowShare,
     getPartnerPrepSummary,
     generatePartnerInviteCode,
+    medicationReminders,
+    moodRecords,
+    prenatalCheckups,
+    sleepRecords,
+    getPartnerPrepTasksByAssignee,
   } = useAppStore();
 
   const [viewRole, setViewRole] = useState<ViewRole>('female');
@@ -57,34 +120,6 @@ export default function PartnerPrep() {
     refreshOvulationWindowShare();
   }, [refreshOvulationWindowShare]);
 
-  const FULL_PERMISSIONS: PartnerPrepPermissionConfig = {
-    ovulation_window: true,
-    conception_probability: true,
-    temperature_curve: true,
-    lh_test: true,
-    task_details: true,
-    task_completion: true,
-    medication_plan: true,
-    checkup_schedule: true,
-    mood_status: true,
-    lifestyle_notes: true,
-  };
-
-  function defaultPerms(): PartnerPrepPermissionConfig {
-    return {
-      ovulation_window: true,
-      conception_probability: true,
-      temperature_curve: false,
-      lh_test: false,
-      task_details: true,
-      task_completion: true,
-      medication_plan: true,
-      checkup_schedule: true,
-      mood_status: false,
-      lifestyle_notes: true,
-    };
-  }
-
   const summary = useMemo(() => getPartnerPrepSummary(), [getPartnerPrepSummary, partnerPrepState]);
   const profile = partnerPrepState.profile;
   const partner = partnerPrepState.partner;
@@ -94,6 +129,152 @@ export default function PartnerPrep() {
       ? FULL_PERMISSIONS
       : partner?.permissions ?? defaultPerms();
 
+  // ================ 真实数据源 ================
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // 1. 用药计划：从 medicationReminders 取备孕期/排卵相关 + 活跃
+  const prepMedications = useMemo<MedicationReminder[]>(() => {
+    return medicationReminders.filter((r) =>
+      r.active && ['pregnancy', 'ovulation'].includes(r.category)
+    );
+  }, [medicationReminders]);
+
+  // 2. 检查安排：prenatalCheckups + partnerPrepTasks 中 checkup 类
+  const prepCheckups = useMemo(() => {
+    const list: Array<{
+      id: string;
+      name: string;
+      date: string;
+      status: 'pending' | 'done' | 'overdue';
+      items?: string;
+      source: 'prenatal' | 'task';
+    }> = [];
+
+    prenatalCheckups.forEach((c) => {
+      const diff = daysBetween(c.date, todayStr);
+      let status: 'pending' | 'done' | 'overdue' = c.completed ? 'done' : diff < 0 ? 'overdue' : 'pending';
+      list.push({
+        id: c.id,
+        name: c.type,
+        date: c.date,
+        status,
+        items: [c.notes, c.doctor ? `医师:${c.doctor}` : null, c.hospital ? `🏥${c.hospital}` : null]
+          .filter(Boolean)
+          .join(' · ') || undefined,
+        source: 'prenatal',
+      });
+    });
+
+    partnerPrepState.tasks
+      .filter((t) => t.category === 'checkup')
+      .forEach((t: PartnerPrepTask) => {
+        const diff = daysBetween(t.dueDate, todayStr);
+        let status: 'pending' | 'done' | 'overdue' = t.completed ? 'done' : diff < 0 ? 'overdue' : 'pending';
+        list.push({
+          id: t.id,
+          name: t.title,
+          date: t.dueDate,
+          status,
+          items: [t.description, t.priority ? `优先级:${t.priority}` : null].filter(Boolean).join(' · ') || undefined,
+          source: 'task',
+        });
+      });
+
+    list.sort((a, b) => a.date.localeCompare(b.date));
+    return list;
+  }, [prenatalCheckups, partnerPrepState.tasks, todayStr]) as Array<{
+    id: string;
+    name: string;
+    date: string;
+    status: 'pending' | 'done' | 'overdue';
+    items?: string;
+    source: 'prenatal' | 'task';
+  }>;
+
+  // 3. 情绪状态：从 moodRecords 取最近 7 条
+  const recentMoods = useMemo(() => {
+    const sorted = [...moodRecords].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
+    return sorted.map((r: MoodRecord) => {
+      const diff = daysBetween(r.date, todayStr);
+      let dayLabel = '今天';
+      if (diff === -1) dayLabel = '昨天';
+      else if (diff === -2) dayLabel = '前天';
+      else if (diff < 0) dayLabel = `${-diff}天前`;
+      else if (diff === 1) dayLabel = '明天';
+      else if (diff > 0) dayLabel = `${diff}天后`;
+
+      return {
+        id: r.id,
+        date: r.date,
+        dayLabel,
+        mood: r.mood,
+        emotion: r.emotion,
+        score: r.intensity,
+        journal: r.journal || '',
+        emoji: moodEmojiMap[r.mood] || moodEmojiMap[r.emotion] || '💭',
+      };
+    });
+  }, [moodRecords, todayStr]) as Array<{
+    id: string;
+    date: string;
+    dayLabel: string;
+    mood: string;
+    emotion: string;
+    score: number;
+    journal: string;
+    emoji: string;
+  }>;
+
+  // 4. 生活备注：综合 sleepRecords + 备孕期生活习惯任务
+  const lifestyleData = useMemo(() => {
+    const recentSleep = [...sleepRecords]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 3)
+      .map((s: SleepRecord) => {
+        const diff = daysBetween(s.date, todayStr);
+        let label = '今天';
+        if (diff === -1) label = '昨天';
+        else if (diff === -2) label = '前天';
+        else if (diff < 0) label = `${-diff}天前`;
+        return {
+          date: s.date,
+          duration: s.duration,
+          quality: s.quality,
+          label,
+        };
+      });
+
+    const lifeTasks = partnerPrepState.tasks.filter(
+      (t) => ['lifestyle', 'exercise', 'nutrition'].includes(t.category) && !t.completed
+    );
+
+    const categoryLabelMap: Record<string, { label: string; tag: string }> = {
+      lifestyle: { label: '🌿 生活方式', tag: '坚持' },
+      exercise: { label: '🏃 运动计划', tag: '规律' },
+      nutrition: { label: '🍵 饮食营养', tag: '均衡' },
+    };
+
+    return {
+      sleepRecent: recentSleep,
+      lifestyleTasks: lifeTasks.map((t: PartnerPrepTask) => ({
+        id: t.id,
+        title: t.title,
+        category: categoryLabelMap[t.category]?.label || t.category,
+        tag: categoryLabelMap[t.category]?.tag || '待办',
+      })),
+      rules: [
+        { type: '💤 睡眠目标', content: '保持 7-8 小时睡眠，23:00 前入睡', tag: '重要' },
+        { type: '🚫 禁忌提醒', content: '戒烟戒酒、避免接触有害物质、不擅自用药', tag: '严格' },
+        { type: '💧 水分摄入', content: '每日饮水量 1500-2000ml', tag: '日常' },
+      ],
+    };
+  }, [sleepRecords, partnerPrepState.tasks, todayStr]) as {
+    sleepRecent: Array<{ date: string; duration: number; quality: number; label: string }>;
+    lifestyleTasks: Array<{ id: string; title: string; category: string; tag: string }>;
+    rules: Array<{ type: string; content: string; tag: string }>;
+  };
+
+  // ================ 通用方法 ================
   const handleGenerateInvite = () => {
     const code = generatePartnerInviteCode();
     setInviteCode(code);
@@ -144,8 +325,10 @@ export default function PartnerPrep() {
     iconBg: string,
     iconColor: string,
     content: React.ReactNode,
+    emptyHint?: string,
   ) {
     const hasPermission = currentPermissions[permissionKey];
+    const isPartnerView = viewRole === 'partner';
     return (
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
@@ -156,11 +339,11 @@ export default function PartnerPrep() {
             <div>
               <h3 className="font-bold text-gray-800">{title}</h3>
               <p className="text-xs text-gray-400">
-                {viewRole === 'female' ? '我的数据' : '女方已授权共享'}
+                {viewRole === 'female' ? '我的真实业务数据' : '女方已授权共享（脱敏）'}
               </p>
             </div>
           </div>
-          {!hasPermission && viewRole === 'partner' && (
+          {!hasPermission && isPartnerView && (
             <span className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-500 flex items-center gap-1">
               <EyeOff className="w-3 h-3" />
               未授权
@@ -173,7 +356,7 @@ export default function PartnerPrep() {
           <div className="py-8 text-center">
             <EyeOff className="w-10 h-10 mx-auto mb-3 text-gray-300" />
             <p className="text-sm text-gray-400 mb-1">该数据暂未向伴侣开放</p>
-            <p className="text-xs text-gray-300">如需查看，请在权限管理中开启</p>
+            <p className="text-xs text-gray-300">如需查看，请在权限管理中开启「{title}」</p>
           </div>
         )}
       </div>
@@ -187,6 +370,7 @@ export default function PartnerPrep() {
     { key: 'permissions', label: '权限管理', icon: Shield, color: 'from-primary-400 to-lavender-500' },
   ];
 
+  // ================ 入口选择 ================
   if (!profile && !showInit) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -305,6 +489,7 @@ export default function PartnerPrep() {
     );
   }
 
+  // ================ 主页面 ================
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -319,6 +504,7 @@ export default function PartnerPrep() {
         </div>
       </div>
 
+      {/* 统计卡片 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -379,6 +565,7 @@ export default function PartnerPrep() {
         </div>
       </div>
 
+      {/* 视图切换 */}
       <div className="flex items-center gap-3 mb-6">
         <div className="flex-1 inline-flex bg-gray-100 rounded-full p-1">
           <button
@@ -420,6 +607,7 @@ export default function PartnerPrep() {
         )}
       </div>
 
+      {/* 伴侣视图无伴侣提示 */}
       {viewRole === 'partner' && !partner && (
         <div className="card p-8 text-center mb-6">
           <Users className="w-16 h-16 mx-auto mb-4 text-sky-300" />
@@ -435,6 +623,7 @@ export default function PartnerPrep() {
         </div>
       )}
 
+      {/* Tab 切换 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -457,10 +646,12 @@ export default function PartnerPrep() {
         })}
       </div>
 
+      {/* ===================== 总览页 ===================== */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
           <OvulationWindowSharing permissions={currentPermissions} viewRole={viewRole} />
 
+          {/* 今日待办速览 */}
           <div className="card p-6 bg-gradient-to-br from-mint-50 to-emerald-50">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-mint-400 to-emerald-500 flex items-center justify-center shadow-md">
@@ -469,7 +660,7 @@ export default function PartnerPrep() {
               <div>
                 <h3 className="font-bold text-gray-800">今日待办速览</h3>
                 <p className="text-xs text-gray-500">
-                  {viewRole === 'female' ? '我的待办' : '伴侣的待办（可见范围）'}
+                  {viewRole === 'female' ? '我的待办（真实任务）' : '伴侣的待办（可见权限范围内）'}
                 </p>
               </div>
             </div>
@@ -498,6 +689,7 @@ export default function PartnerPrep() {
             )}
           </div>
 
+          {/* 邀请伴侣 */}
           {viewRole === 'female' && !partner && (
             <div className="card p-6 bg-gradient-to-br from-lavender-50 to-purple-50 border border-lavender-200">
               <div className="flex items-center gap-3 mb-3">
@@ -516,7 +708,9 @@ export default function PartnerPrep() {
             </div>
           )}
 
+          {/* ========== 四大真实数据模块 ========== */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 用药计划：真实 medicationReminders 数据 */}
             {renderPermissionModule(
               'medication_plan',
               '用药计划',
@@ -524,24 +718,44 @@ export default function PartnerPrep() {
               'from-rose-400 to-pink-500',
               'bg-rose-100',
               'text-rose-600',
-              <div className="space-y-3">
-                {[
-                  { name: '叶酸片', time: '每日早餐后', dose: '0.4mg', note: '预防胎儿神经管缺陷' },
-                  { name: '维生素D3', time: '每日午餐后', dose: '1000IU', note: '促进钙吸收' },
-                  { name: '钙片', time: '每日睡前', dose: '600mg', note: '储备骨骼钙质' },
-                ].map((med, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-white/70 rounded-xl">
-                    <div className="w-2 h-2 rounded-full bg-rose-400 mt-2 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm">{med.name}</p>
-                      <p className="text-xs text-gray-500">{med.time} · {med.dose}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{med.note}</p>
+              prepMedications.length > 0 ? (
+                <div className="space-y-2">
+                  {prepMedications.map((med) => (
+                    <div key={med.id} className="flex items-start gap-3 p-3 bg-rose-50/40 rounded-xl border border-rose-100">
+                      <div className="w-2 h-2 rounded-full bg-rose-400 mt-2 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-gray-800 text-sm">{med.name}</p>
+                          {med.active ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600">进行中</span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">已停用</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {med.dosage} · {med.frequency} · {med.times.join('/')}
+                        </p>
+                        {viewRole === 'female' && med.notes && (
+                          <p className="text-xs text-gray-400 mt-0.5">💡 {med.notes}</p>
+                        )}
+                        {viewRole === 'partner' && med.notes && currentPermissions.medication_plan && (
+                          <p className="text-xs text-gray-400 mt-0.5">💡 备注已同步（摘要）</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm text-gray-400">暂无备孕期用药记录</p>
+                  <p className="text-xs text-gray-300 mt-0.5">可在提醒中心添加备孕期用药</p>
+                </div>
+              ),
+              '暂无用药记录',
             )}
 
+            {/* 检查安排：真实 prenatalCheckups + checkup 任务 */}
             {renderPermissionModule(
               'checkup_schedule',
               '检查安排',
@@ -549,35 +763,66 @@ export default function PartnerPrep() {
               'from-sky-400 to-blue-500',
               'bg-sky-100',
               'text-sky-600',
-              <div className="space-y-3">
-                {[
-                  { name: '孕前全面体检', date: '本月内', status: 'pending', items: '血常规、B超、TORCH、性激素六项' },
-                  { name: '妇科常规检查', date: '月经干净后3-7天', status: 'pending', items: '白带常规、TCT、HPV' },
-                  { name: '口腔检查', date: '备孕前3个月', status: 'done', items: '洗牙、智齿评估' },
-                  { name: '甲状腺功能', date: '已完成', status: 'done', items: 'TSH、FT3、FT4、TPOAb' },
-                ].map((check, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-white/70 rounded-xl">
-                    <div className={cn(
-                      'w-2 h-2 rounded-full mt-2 flex-shrink-0',
-                      check.status === 'done' ? 'bg-emerald-400' : 'bg-sky-400'
-                    )} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-800 text-sm">{check.name}</p>
-                        {check.status === 'done' ? (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600">已完成</span>
-                        ) : (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600">待安排</span>
+              prepCheckups.length > 0 ? (
+                <div className="space-y-2">
+                  {prepCheckups.map((c) => {
+                    const diff = daysBetween(c.date, todayStr);
+                    const dateLabel = diff === 0 ? '今天'
+                      : diff === 1 ? '明天'
+                      : diff > 0 ? `${diff}天后`
+                      : diff === -1 ? '昨天'
+                      : `${-diff}天前`;
+                    return (
+                      <div
+                        key={c.id}
+                        className={cn(
+                          'flex items-start gap-3 p-3 rounded-xl border',
+                          c.status === 'done'
+                            ? 'bg-emerald-50/50 border-emerald-100'
+                            : c.status === 'overdue'
+                            ? 'bg-rose-50/40 border-rose-100'
+                            : 'bg-sky-50/40 border-sky-100'
                         )}
+                      >
+                        <div className={cn(
+                          'w-2 h-2 rounded-full mt-2 flex-shrink-0',
+                          c.status === 'done' ? 'bg-emerald-400' :
+                          c.status === 'overdue' ? 'bg-rose-400' : 'bg-sky-400'
+                        )} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-gray-800 text-sm">{c.name}</p>
+                            {c.status === 'done' ? (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600">✓ 已完成</span>
+                            ) : c.status === 'overdue' ? (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600">⚠ 已过期</span>
+                            ) : (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600">待完成 · {dateLabel}</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            📅 {c.date.slice(5)}
+                            {c.source === 'prenatal' ? '（产检系统）' : '（备孕任务）'}
+                          </p>
+                          {c.items && (
+                            <p className="text-xs text-gray-400 mt-0.5">{c.items}</p>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{check.date}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">项目：{check.items}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-6 text-center">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm text-gray-400">暂无检查安排记录</p>
+                  <p className="text-xs text-gray-300 mt-0.5">建议添加孕前全面体检、妇科检查等</p>
+                </div>
+              ),
+              '暂无检查安排',
             )}
 
+            {/* 情绪状态：真实 moodRecords 数据 */}
             {renderPermissionModule(
               'mood_status',
               '情绪状态',
@@ -585,35 +830,57 @@ export default function PartnerPrep() {
               'from-amber-400 to-orange-500',
               'bg-amber-100',
               'text-amber-600',
-              <div className="space-y-3">
-                {[
-                  { day: '今天', mood: '😊', label: '愉快', score: 8, note: '今天感觉状态不错，散步了半小时' },
-                  { day: '昨天', mood: '😌', label: '平静', score: 7, note: '工作有点忙，但整体平稳' },
-                  { day: '前天', mood: '😔', label: '低落', score: 4, note: '排卵试纸阴性，有点焦虑' },
-                ].map((m, i) => (
-                  <div key={i} className="p-3 bg-white/70 rounded-xl">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{m.mood}</span>
-                        <span className="font-semibold text-sm text-gray-800">{m.label}</span>
+              recentMoods.length > 0 ? (
+                <div className="space-y-2">
+                  {recentMoods.map((m, idx) => (
+                    <div
+                      key={m.id}
+                      className={cn(
+                        'p-3 rounded-xl border',
+                        idx === 0 ? 'bg-amber-50/60 border-amber-200' : 'bg-amber-50/30 border-amber-100'
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{m.emoji}</span>
+                          <span className="font-semibold text-sm text-gray-800">{m.mood}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-500">{m.dayLabel}</span>
+                          <span className="text-xs font-bold text-amber-600">{m.score}/10</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-gray-500">{m.day}</span>
-                        <span className="text-xs font-bold text-amber-600">{m.score}/10</span>
+                      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full',
+                            m.score >= 7 ? 'bg-gradient-to-r from-emerald-400 to-mint-400'
+                              : m.score >= 4 ? 'bg-gradient-to-r from-amber-400 to-orange-400'
+                              : 'bg-gradient-to-r from-rose-400 to-pink-400'
+                          )}
+                          style={{ width: `${m.score * 10}%` }}
+                        />
                       </div>
+                      {viewRole === 'female' && m.journal && (
+                        <p className="text-xs text-gray-400 mt-1.5">📝 {m.journal}</p>
+                      )}
+                      {viewRole === 'partner' && m.journal && currentPermissions.mood_status && (
+                        <p className="text-xs text-gray-400 mt-1.5">📝 日记摘要：{m.journal.length > 12 ? m.journal.slice(0, 12) + '...' : m.journal}</p>
+                      )}
                     </div>
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full"
-                        style={{ width: `${m.score * 10}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1.5">{m.note}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm text-gray-400">暂无情绪记录</p>
+                  <p className="text-xs text-gray-300 mt-0.5">建议每天记录情绪以辅助调理</p>
+                </div>
+              ),
+              '暂无情绪记录',
             )}
 
+            {/* 生活备注：真实 sleepRecords + lifestyle 任务 */}
             {renderPermissionModule(
               'lifestyle_notes',
               '生活备注',
@@ -621,24 +888,65 @@ export default function PartnerPrep() {
               'from-mint-400 to-emerald-500',
               'bg-mint-100',
               'text-mint-600',
-              <div className="space-y-3">
-                {[
-                  { type: '💤 睡眠', content: '目标 7-8 小时，尽量 23:00 前入睡', tag: '重要' },
-                  { type: '🏃 运动', content: '每周3-4次轻运动：快走、瑜伽、游泳', tag: '规律' },
-                  { type: '🍵 饮食', content: '避免咖啡因、生冷食物；多吃优质蛋白、深绿色蔬菜', tag: '坚持中' },
-                  { type: '🚫 禁忌', content: '戒烟戒酒、避免接触有害物质、不乱服用药物', tag: '严格' },
-                ].map((note, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-white/70 rounded-xl">
-                    <p className="text-sm flex-shrink-0">{note.type}</p>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-700">{note.content}</p>
+              <div className="space-y-4">
+                {/* 睡眠数据 */}
+                {lifestyleData.sleepRecent.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Moon className="w-4 h-4 text-indigo-500" />
+                      <span className="text-xs font-semibold text-gray-600">近期睡眠</span>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-mint-50 text-mint-600 flex-shrink-0">
-                      {note.tag}
-                    </span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {lifestyleData.sleepRecent.map((s) => (
+                        <div key={s.date} className="p-2 bg-indigo-50/60 rounded-lg text-center">
+                          <p className="text-[10px] text-gray-400">{s.label}</p>
+                          <p className="text-sm font-bold text-indigo-700">{s.duration.toFixed(1)}h</p>
+                          <p className="text-[10px] text-indigo-500">
+                            {'⭐'.repeat(s.quality).slice(0, 5)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
+                )}
+
+                {/* 生活方式任务 */}
+                {lifestyleData.lifestyleTasks.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Leaf className="w-4 h-4 text-emerald-500" />
+                      <span className="text-xs font-semibold text-gray-600">习惯养成</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {lifestyleData.lifestyleTasks.slice(0, 3).map((t) => (
+                        <div key={t.id} className="flex items-center gap-2 p-2 bg-emerald-50/40 rounded-lg">
+                          <span className="text-[11px] text-gray-500 flex-shrink-0">{t.category}</span>
+                          <span className="text-xs text-gray-700 flex-1 min-w-0 truncate">{t.title}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{t.tag}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 通用规则 */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Dumbbell className="w-4 h-4 text-sky-500" />
+                    <span className="text-xs font-semibold text-gray-600">日常守则</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {lifestyleData.rules.map((r, i) => (
+                      <div key={i} className="flex items-start gap-2 p-2 bg-sky-50/40 rounded-lg">
+                        <span className="text-[11px] text-gray-600 font-medium flex-shrink-0">{r.type}</span>
+                        <span className="text-xs text-gray-600 flex-1">{r.content}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 flex-shrink-0">{r.tag}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>,
+              '暂无生活备注数据',
             )}
           </div>
         </div>
