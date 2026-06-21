@@ -102,6 +102,7 @@ export default function PregnancyPage() {
     visitRecords,
     updatePrenatalCheckup,
     deletePrenatalCheckup,
+    toggleCheckupCustomItem,
     getOverduePrenatalCheckups,
   } = useAppStore();
 
@@ -508,13 +509,12 @@ export default function PregnancyPage() {
                 <h3 className="text-sm font-medium text-gray-500 mb-3">待完成</h3>
                 <div className="space-y-3">
                   {upcoming.map((c) => {
-                    const isOverdue = c.date < new Date().toISOString().split('T')[0];
                     return (
                       <div
                         key={c.id}
                         className={cn(
                           'p-4 rounded-xl hover:shadow-md transition-shadow border',
-                          isOverdue
+                          c.isOverdue
                             ? 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
                             : 'bg-gradient-to-r from-sky-50 to-blue-50 border-sky-100'
                         )}
@@ -530,7 +530,7 @@ export default function PregnancyPage() {
                             <div>
                               <div className="flex items-center gap-2">
                                 <h4 className="font-bold text-gray-800">{c.type}</h4>
-                                {isOverdue && (
+                                {c.isOverdue && (
                                   <span className="flex items-center gap-1 text-xs text-red-500 font-medium">
                                     <AlertTriangle className="w-3.5 h-3.5" />
                                     已逾期
@@ -565,6 +565,29 @@ export default function PregnancyPage() {
                                 <p className="text-sm text-gray-500 mt-2 bg-white/50 p-2 rounded-lg">
                                   {c.notes}
                                 </p>
+                              )}
+                              {c.customItems && c.customItems.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                  {c.customItems.map((item) => (
+                                    <button
+                                      key={item.id}
+                                      onClick={() => toggleCheckupCustomItem(c.id, item.id)}
+                                      className={cn(
+                                        'text-xs px-2.5 py-1 rounded-full flex items-center gap-1 transition-colors',
+                                        item.completed
+                                          ? 'bg-mint-100 text-mint-600'
+                                          : 'bg-white/70 text-gray-500 hover:bg-white hover:text-sky-500'
+                                      )}
+                                    >
+                                      {item.completed ? (
+                                        <CheckSquare className="w-3 h-3" />
+                                      ) : (
+                                        <Square className="w-3 h-3" />
+                                      )}
+                                      {item.name}
+                                    </button>
+                                  ))}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -626,13 +649,14 @@ export default function PregnancyPage() {
                             {c.customItems && c.customItems.length > 0 && (
                               <div className="flex flex-wrap gap-2 mt-2">
                                 {c.customItems.map((item) => (
-                                  <span
+                                  <button
                                     key={item.id}
+                                    onClick={() => toggleCheckupCustomItem(c.id, item.id)}
                                     className={cn(
-                                      'text-xs px-2 py-0.5 rounded-full flex items-center gap-1',
+                                      'text-xs px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors',
                                       item.completed
                                         ? 'bg-mint-100 text-mint-600'
-                                        : 'bg-gray-100 text-gray-400'
+                                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                                     )}
                                   >
                                     {item.completed ? (
@@ -641,7 +665,7 @@ export default function PregnancyPage() {
                                       <Square className="w-3 h-3" />
                                     )}
                                     {item.name}
-                                  </span>
+                                  </button>
                                 ))}
                               </div>
                             )}

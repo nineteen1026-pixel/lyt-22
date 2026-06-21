@@ -1753,16 +1753,26 @@ export const useAppStore = create<AppState>()(
         }),
 
       addPrenatalCheckup: (checkup: PrenatalCheckup) =>
-        set((state) => ({
-          prenatalCheckups: [...state.prenatalCheckups, checkup],
-        })),
+        set((state) => {
+          const today = dateStr(new Date());
+          const isOverdue = !checkup.completed && checkup.date < today;
+          return {
+            prenatalCheckups: [...state.prenatalCheckups, { ...checkup, isOverdue }],
+          };
+        }),
 
       updatePrenatalCheckup: (id: string, data: Partial<PrenatalCheckup>) =>
-        set((state) => ({
-          prenatalCheckups: state.prenatalCheckups.map((c) =>
-            c.id === id ? { ...c, ...data } : c
-          ),
-        })),
+        set((state) => {
+          const today = dateStr(new Date());
+          return {
+            prenatalCheckups: state.prenatalCheckups.map((c) => {
+              if (c.id !== id) return c;
+              const merged = { ...c, ...data };
+              const isOverdue = !merged.completed && merged.date < today;
+              return { ...merged, isOverdue };
+            }),
+          };
+        }),
 
       deletePrenatalCheckup: (id: string) =>
         set((state) => ({
@@ -1777,28 +1787,39 @@ export const useAppStore = create<AppState>()(
             return {
               ...c,
               completed: nowCompleted,
-              completedDate: nowCompleted ? new Date().toISOString().split('T')[0] : undefined,
-              isOverdue: nowCompleted ? false : c.isOverdue,
+              completedDate: nowCompleted ? dateStr(new Date()) : undefined,
+              isOverdue: false,
+            };
+          }),
+        })),
+
+      toggleCheckupCustomItem: (checkupId: string, itemId: string) =>
+        set((state) => ({
+          prenatalCheckups: state.prenatalCheckups.map((c) => {
+            if (c.id !== checkupId) return c;
+            return {
+              ...c,
+              customItems: (c.customItems || []).map((item) =>
+                item.id === itemId ? { ...item, completed: !item.completed } : item
+              ),
             };
           }),
         })),
 
       getTodayPrenatalTodos: () => {
         const { prenatalCheckups } = get();
-        const today = new Date().toISOString().split('T')[0];
+        const today = dateStr(new Date());
         return prenatalCheckups.filter((c) => {
           if (c.completed) return false;
-          const checkupDate = c.date;
           const remindDays = c.remindDaysBefore ?? 3;
-          const remindDate = addDays(new Date(checkupDate), -remindDays);
-          const remindDateStr = dateStr(remindDate);
-          return today >= remindDateStr && today <= checkupDate;
+          const remindDate = dateStr(addDays(new Date(c.date), -remindDays));
+          return today >= remindDate && today <= c.date;
         });
       },
 
       getOverduePrenatalCheckups: () => {
         const { prenatalCheckups } = get();
-        const today = new Date().toISOString().split('T')[0];
+        const today = dateStr(new Date());
         return prenatalCheckups.filter((c) => !c.completed && c.date < today);
       },
 
