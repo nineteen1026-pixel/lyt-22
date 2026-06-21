@@ -347,6 +347,42 @@ export interface PainRecord {
 
 export type LifeStage = 'teen' | 'career' | 'pregnancy-prep' | 'pregnancy' | 'postpartum' | 'menopause';
 
+export interface MigrationFieldMapping {
+  sourceField: string;
+  sourceLabel: string;
+  targetField: string;
+  targetLabel: string;
+  transform?: 'direct' | 'date-offset' | 'value-map' | 'derive';
+  transformHint?: string;
+  valueMap?: Record<string, string>;
+}
+
+export interface MigrationMappingSet {
+  from: LifeStage;
+  to: LifeStage;
+  label: string;
+  description: string;
+  fieldMappings: MigrationFieldMapping[];
+  autoDerivedFields: { targetField: string; targetLabel: string; derivation: string }[];
+}
+
+export interface MigrationPreview {
+  mapping: MigrationMappingSet;
+  sourceDataCount: number;
+  migratedDataCount: number;
+  warnings: string[];
+}
+
+export interface MigrationResult {
+  from: LifeStage;
+  to: LifeStage;
+  timestamp: string;
+  migratedFields: string[];
+  derivedFields: string[];
+  skippedFields: string[];
+  warnings: string[];
+}
+
 export interface Nutrient {
   id: string;
   name: string;
@@ -981,6 +1017,9 @@ export interface AppState {
   visitRecords: VisitRecord[];
   testReports: TestReport[];
   setLifeStage: (stage: LifeStage) => void;
+  migrateLifeStage: (targetStage: LifeStage) => MigrationResult;
+  getMigrationMapping: (from: LifeStage, to: LifeStage) => MigrationMappingSet;
+  getMigrationPreview: (from: LifeStage, to: LifeStage) => MigrationPreview;
   addPeriodRecord: (record: PeriodRecord) => void;
   addOvertimeRecord: (record: OvertimeRecord) => void;
   addOvulationRecord: (record: OvulationRecord) => void;

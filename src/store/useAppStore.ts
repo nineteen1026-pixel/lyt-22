@@ -52,6 +52,10 @@ import type {
   TemperatureAnomalyAlert,
   BluetoothDeviceInfo,
   TemperatureStatistics,
+  MigrationMappingSet,
+  MigrationFieldMapping,
+  MigrationPreview,
+  MigrationResult,
 } from '@/types';
 import { useNutritionStore } from '@/store/useNutritionStore';
 import {
@@ -1405,6 +1409,195 @@ export const useAppStore = create<AppState>()(
       testReports: mockTestReports,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
+
+      getMigrationMapping: (from: LifeStage, to: LifeStage): MigrationMappingSet => {
+        const mappings: Record<string, MigrationMappingSet> = {
+          'teen->career': {
+            from: 'teen',
+            to: 'career',
+            label: '少女期 → 职场期',
+            description: '将月经周期记录迁移至职场健康看板，加班记录将关联周期阶段',
+            fieldMappings: [
+              { sourceField: 'cycleData.cycleLength', sourceLabel: '周期长度', targetField: 'cycleData.cycleLength', targetLabel: '周期长度', transform: 'direct' },
+              { sourceField: 'cycleData.periodLength', sourceLabel: '经期长度', targetField: 'cycleData.periodLength', targetLabel: '经期长度', transform: 'direct' },
+              { sourceField: 'cycleData.lastPeriodDate', sourceLabel: '末次月经', targetField: 'cycleData.lastPeriodDate', targetLabel: '末次月经', transform: 'direct' },
+              { sourceField: 'cycleData.periodStartDates', sourceLabel: '经期起始日列表', targetField: 'cycleData.periodStartDates', targetLabel: '经期起始日列表', transform: 'direct' },
+              { sourceField: 'cycleData.records', sourceLabel: '经期记录', targetField: 'cycleData.records', targetLabel: '经期记录', transform: 'direct' },
+              { sourceField: 'painRecords', sourceLabel: '痛经记录', targetField: 'painRecords', targetLabel: '痛经记录', transform: 'direct' },
+              { sourceField: 'medicationReminders(dysmenorrhea)', sourceLabel: '痛经用药提醒', targetField: 'medicationReminders(dysmenorrhea)', targetLabel: '痛经用药提醒', transform: 'direct' },
+              { sourceField: 'temperatureRecords', sourceLabel: '体温记录', targetField: 'temperatureRecords', targetLabel: '体温记录', transform: 'direct' },
+            ],
+            autoDerivedFields: [
+              { targetField: 'overtimeRecords', targetLabel: '加班记录(周期关联)', derivation: '新增加班记录时自动标注所处周期阶段与经期日标记' },
+            ],
+          },
+          'teen->pregnancy-prep': {
+            from: 'teen',
+            to: 'pregnancy-prep',
+            label: '少女期 → 备孕期',
+            description: '周期数据直接迁移，自动启用排卵追踪与受孕概率计算',
+            fieldMappings: [
+              { sourceField: 'cycleData.cycleLength', sourceLabel: '周期长度', targetField: 'cycleData.cycleLength', targetLabel: '周期长度', transform: 'direct' },
+              { sourceField: 'cycleData.periodLength', sourceLabel: '经期长度', targetField: 'cycleData.periodLength', targetLabel: '经期长度', transform: 'direct' },
+              { sourceField: 'cycleData.lastPeriodDate', sourceLabel: '末次月经', targetField: 'cycleData.lastPeriodDate', targetLabel: '末次月经', transform: 'direct' },
+              { sourceField: 'cycleData.firstPeriodDate', sourceLabel: '初潮日期', targetField: 'cycleData.firstPeriodDate', targetLabel: '初潮日期', transform: 'direct' },
+              { sourceField: 'cycleData.periodStartDates', sourceLabel: '经期起始日列表', targetField: 'cycleData.periodStartDates', targetLabel: '经期起始日列表', transform: 'direct' },
+              { sourceField: 'cycleData.records', sourceLabel: '经期记录', targetField: 'cycleData.records', targetLabel: '经期记录', transform: 'direct' },
+              { sourceField: 'temperatureRecords', sourceLabel: '体温记录', targetField: 'temperatureRecords', targetLabel: '体温记录', transform: 'direct' },
+              { sourceField: 'painRecords', sourceLabel: '痛经记录', targetField: 'painRecords', targetLabel: '痛经记录', transform: 'direct' },
+            ],
+            autoDerivedFields: [
+              { targetField: 'ovulationRecords', targetLabel: '排卵记录', derivation: '根据体温升高日自动生成排卵记录' },
+              { targetField: 'pregnancyData.lastMenstrualPeriodDate', targetLabel: '末次月经(备孕)', derivation: '同步 cycleData.lastPeriodDate 至 pregnancyData.lastMenstrualPeriodDate' },
+              { targetField: 'medicationReminders(ovulation)', targetLabel: '促排药提醒', derivation: '建议添加促排药物提醒' },
+            ],
+          },
+          'teen->pregnancy': {
+            from: 'teen',
+            to: 'pregnancy',
+            label: '少女期 → 孕期',
+            description: '迁移周期数据，自动设置末次月经计算预产期与孕周',
+            fieldMappings: [
+              { sourceField: 'cycleData.cycleLength', sourceLabel: '周期长度', targetField: 'cycleData.cycleLength', targetLabel: '周期长度', transform: 'direct' },
+              { sourceField: 'cycleData.lastPeriodDate', sourceLabel: '末次月经', targetField: 'cycleData.lastPeriodDate', targetLabel: '末次月经', transform: 'direct' },
+              { sourceField: 'cycleData.periodStartDates', sourceLabel: '经期起始日列表', targetField: 'cycleData.periodStartDates', targetLabel: '经期起始日列表', transform: 'direct' },
+              { sourceField: 'cycleData.records', sourceLabel: '经期记录', targetField: 'cycleData.records', targetLabel: '经期记录', transform: 'direct' },
+              { sourceField: 'temperatureRecords', sourceLabel: '体温记录', targetField: 'temperatureRecords', targetLabel: '体温记录', transform: 'direct' },
+              { sourceField: 'medicationReminders', sourceLabel: '用药提醒', targetField: 'medicationReminders', targetLabel: '用药提醒', transform: 'direct' },
+            ],
+            autoDerivedFields: [
+              { targetField: 'pregnancyData.lastMenstrualPeriodDate', targetLabel: '末次月经(孕期)', derivation: '同步 cycleData.lastPeriodDate 至 pregnancyData.lastMenstrualPeriodDate 以计算孕周和预产期' },
+              { targetField: 'medicationReminders(pregnancy)', targetLabel: '孕期用药提醒', derivation: '自动添加叶酸、钙片等孕期必备药物提醒' },
+            ],
+          },
+        };
+
+        const key = `${from}->${to}`;
+        return mappings[key] || {
+          from,
+          to,
+          label: `${from} → ${to}`,
+          description: '基础数据迁移',
+          fieldMappings: [
+            { sourceField: 'cycleData', sourceLabel: '周期数据', targetField: 'cycleData', targetLabel: '周期数据', transform: 'direct' },
+            { sourceField: 'temperatureRecords', sourceLabel: '体温记录', targetField: 'temperatureRecords', targetLabel: '体温记录', transform: 'direct' },
+          ],
+          autoDerivedFields: [],
+        };
+      },
+
+      getMigrationPreview: (from: LifeStage, to: LifeStage): MigrationPreview => {
+        const state = get();
+        const mapping = get().getMigrationMapping(from, to);
+        const warnings: string[] = [];
+
+        let sourceDataCount = 0;
+        sourceDataCount += state.cycleData.periodStartDates.length;
+        sourceDataCount += state.cycleData.records.length;
+        sourceDataCount += state.temperatureRecords.length;
+        sourceDataCount += state.painRecords.length;
+
+        let migratedDataCount = mapping.fieldMappings.length;
+
+        if (to === 'pregnancy-prep' || to === 'pregnancy') {
+          if (!state.cycleData.lastPeriodDate) {
+            warnings.push('未设置末次月经日期，迁移后需手动设置以启用预测功能');
+          }
+        }
+
+        if (to === 'pregnancy' && state.cycleData.lastPeriodDate) {
+          const lmp = new Date(state.cycleData.lastPeriodDate);
+          const now = new Date();
+          const daysSince = Math.floor((now.getTime() - lmp.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSince > 280) {
+            warnings.push('末次月经距今已超过280天，预产期计算可能不准确，建议手动设置孕周');
+          }
+        }
+
+        if (to === 'career' && state.overtimeRecords.length > 0) {
+          warnings.push('职场期已有加班记录，迁移后数据将保留');
+        }
+
+        if (mapping.autoDerivedFields.length === 0) {
+          warnings.push('该迁移路径暂无自动派生字段');
+        }
+
+        return { mapping, sourceDataCount, migratedDataCount, warnings };
+      },
+
+      migrateLifeStage: (targetStage: LifeStage): MigrationResult => {
+        const state = get();
+        const from = state.lifeStage;
+        const mapping = get().getMigrationMapping(from, targetStage);
+        const warnings: string[] = [];
+        const migratedFields: string[] = [];
+        const derivedFields: string[] = [];
+        const skippedFields: string[] = [];
+
+        const updates: Partial<AppState> = { lifeStage: targetStage };
+
+        for (const fm of mapping.fieldMappings) {
+          if (fm.transform === 'direct') {
+            migratedFields.push(fm.targetLabel);
+          } else {
+            skippedFields.push(fm.targetLabel);
+          }
+        }
+
+        if ((targetStage === 'pregnancy-prep' || targetStage === 'pregnancy') && state.cycleData.lastPeriodDate) {
+          updates.pregnancyData = {
+            ...state.pregnancyData,
+            lastMenstrualPeriodDate: state.cycleData.lastPeriodDate,
+          };
+          derivedFields.push('末次月经(孕期/备孕)');
+        }
+
+        if (targetStage === 'pregnancy') {
+          const hasFolicAcid = state.medicationReminders.some(
+            (r) => r.category === 'pregnancy' && r.name.includes('叶酸')
+          );
+          if (!hasFolicAcid) {
+            const newReminder: MedicationReminder = {
+              id: generateId(),
+              category: 'pregnancy',
+              name: '叶酸片',
+              dosage: '0.4mg',
+              frequency: '每日1次',
+              times: ['09:00'],
+              startDate: new Date().toISOString().split('T')[0],
+              notes: '孕早期必备，预防神经管缺陷',
+              active: true,
+            };
+            updates.medicationReminders = [...state.medicationReminders, newReminder];
+            derivedFields.push('叶酸片用药提醒');
+          }
+        }
+
+        if (targetStage === 'pregnancy-prep') {
+          const hasOvulationMeds = state.medicationReminders.some(
+            (r) => r.category === 'ovulation'
+          );
+          if (!hasOvulationMeds) {
+            warnings.push('建议在用药中心添加促排药物提醒（如来曲唑等）');
+          }
+        }
+
+        if (targetStage === 'career' && state.cycleData.lastPeriodDate) {
+          warnings.push('加班记录新增时会自动标注周期阶段，请在职场页添加加班记录');
+        }
+
+        set(updates);
+
+        return {
+          from,
+          to: targetStage,
+          timestamp: new Date().toISOString(),
+          migratedFields,
+          derivedFields,
+          skippedFields,
+          warnings,
+        };
+      },
 
       addPeriodRecord: (record: PeriodRecord) =>
         set((state) => {

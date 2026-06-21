@@ -13,10 +13,12 @@ import {
   Shield,
   AlertCircle,
   Sparkles as SparklesIcon,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
 import type { CalendarDayType, PredictionResult } from '@/types';
+import LifeStageMigrationWizard from '@/components/migration/LifeStageMigrationWizard';
 
 const cycleKnowledge = [
   {
@@ -77,6 +79,7 @@ export default function TeenPage() {
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [showMigrationWizard, setShowMigrationWizard] = useState(false);
   const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
   const [flow, setFlow] = useState<'light' | 'medium' | 'heavy'>('medium');
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
@@ -207,6 +210,13 @@ export default function TeenPage() {
             <h1 className="font-display text-3xl font-bold text-gray-800">少女期</h1>
             <p className="text-gray-500">温柔记录成长的每一步</p>
           </div>
+          <button
+            onClick={() => setShowMigrationWizard(true)}
+            className="ml-auto flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-400 to-rose-400 text-white rounded-full text-sm font-medium shadow-md hover:shadow-lg transition-all"
+          >
+            <ArrowRightLeft className="w-4 h-4" />
+            阶段迁移
+          </button>
         </div>
       </div>
 
@@ -648,6 +658,10 @@ export default function TeenPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showMigrationWizard && (
+        <LifeStageMigrationWizard onClose={() => setShowMigrationWizard(false)} />
       )}
     </div>
   );

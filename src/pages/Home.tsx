@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Sparkles,
@@ -14,8 +15,10 @@ import {
   Moon,
   Users,
   Eye,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import LifeStageMigrationWizard from '@/components/migration/LifeStageMigrationWizard';
 
 const stages = [
   {
@@ -132,6 +135,7 @@ const stages = [
 
 export default function Home() {
   const { cycleData, getNextPeriodDate, getOvulationDate } = useAppStore();
+  const [showMigrationWizard, setShowMigrationWizard] = useState(false);
 
   const nextPeriod = getNextPeriodDate();
   const ovulationDate = getOvulationDate();
@@ -256,6 +260,29 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="mt-12">
+        <div className="card p-6 bg-gradient-to-r from-pink-50 via-rose-50 to-purple-50 border border-pink-200">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-400 flex items-center justify-center shadow-lg shadow-pink-200/50 shrink-0">
+              <ArrowRightLeft className="w-7 h-7 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-gray-800">人生阶段迁移向导</h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                从少女期切换至职场/备孕/孕期，历史数据自动迁移
+              </p>
+            </div>
+            <button
+              onClick={() => setShowMigrationWizard(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-pink-400 to-rose-400 text-white rounded-full text-sm font-medium shadow-md hover:shadow-lg transition-all"
+            >
+              开始迁移
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section className="mt-16">
         <div className="card p-8 md:p-12 bg-gradient-to-r from-primary-400 via-pink-400 to-lavender-500 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -280,6 +307,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {showMigrationWizard && (
+        <LifeStageMigrationWizard onClose={() => setShowMigrationWizard(false)} />
+      )}
     </div>
   );
 }
