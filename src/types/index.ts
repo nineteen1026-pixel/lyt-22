@@ -249,6 +249,62 @@ export interface SleepRecommendation {
   timeToEffect: string;
 }
 
+export type HormonePhase = 'follicular' | 'ovulatory' | 'luteal' | 'perimenopausal' | 'postmenopausal' | 'pregnancy' | 'postpartum';
+
+export type HormoneIndicator =
+  | 'estradiol'
+  | 'progesterone'
+  | 'fsh'
+  | 'lh'
+  | 'testosterone'
+  | 'prolactin'
+  | 'amh'
+  | 'tsh'
+  | 'ft3'
+  | 'ft4'
+  | 'dhea'
+  | 'cortisol';
+
+export interface HormoneReferenceRange {
+  indicator: HormoneIndicator;
+  indicatorName: string;
+  unit: string;
+  phase: HormonePhase | 'general';
+  min: number;
+  max: number;
+  optimalMin?: number;
+  optimalMax?: number;
+}
+
+export interface HormoneInterpretation {
+  indicator: HormoneIndicator;
+  indicatorName: string;
+  value: number;
+  unit: string;
+  status: 'low' | 'normal' | 'high' | 'critical';
+  phase: HormonePhase;
+  description: string;
+  possibleCauses: string[];
+  recommendations: string[];
+  relatedSymptoms?: string[];
+}
+
+export interface HormoneAnalysisReport {
+  date: string;
+  phase: HormonePhase;
+  overallStatus: 'normal' | 'monitor' | 'attention';
+  interpretations: HormoneInterpretation[];
+  keyInsights: { type: 'warning' | 'info' | 'good'; title: string; description: string }[];
+  phaseContext: string;
+  nextSteps: string[];
+}
+
+export interface HormoneTrendPoint {
+  date: string;
+  phase?: HormonePhase;
+  values: Partial<Record<HormoneIndicator, number>>;
+}
+
 export interface HormoneRecord {
   id: string;
   date: string;
@@ -256,7 +312,18 @@ export interface HormoneRecord {
   progesteroneLevel?: number;
   fshLevel?: number;
   lhLevel?: number;
-  phase: 'follicular' | 'ovulatory' | 'luteal' | 'perimenopausal' | 'postmenopausal';
+  testosteroneLevel?: number;
+  prolactinLevel?: number;
+  amhLevel?: number;
+  tshLevel?: number;
+  ft3Level?: number;
+  ft4Level?: number;
+  dheaLevel?: number;
+  cortisolLevel?: number;
+  phase: HormonePhase;
+  hospital?: string;
+  doctor?: string;
+  testMethod?: string;
   notes?: string;
 }
 

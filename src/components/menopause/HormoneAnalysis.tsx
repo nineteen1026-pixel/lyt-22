@@ -10,6 +10,8 @@ const phaseLabels: Record<HormoneRecord['phase'], string> = {
   luteal: '黄体期',
   perimenopausal: '围绝经期',
   postmenopausal: '绝经后',
+  pregnancy: '妊娠期',
+  postpartum: '产后',
 };
 
 const phaseColors: Record<HormoneRecord['phase'], string> = {
@@ -18,6 +20,8 @@ const phaseColors: Record<HormoneRecord['phase'], string> = {
   luteal: 'from-purple-400 to-lavender-500',
   perimenopausal: 'from-amber-400 to-orange-500',
   postmenopausal: 'from-slate-400 to-gray-500',
+  pregnancy: 'from-emerald-400 to-teal-500',
+  postpartum: 'from-rose-400 to-pink-500',
 };
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
