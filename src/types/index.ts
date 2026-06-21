@@ -1115,6 +1115,7 @@ export interface AppState {
   deletePrenatalCheckup: (id: string) => void;
   toggleCheckupComplete: (id: string) => void;
   toggleCheckupCustomItem: (checkupId: string, itemId: string) => void;
+  recalculatePrenatalOverdueStatus: () => void;
   getTodayPrenatalTodos: () => PrenatalCheckup[];
   getOverduePrenatalCheckups: () => PrenatalCheckup[];
   addMoodRecord: (record: MoodRecord) => void;

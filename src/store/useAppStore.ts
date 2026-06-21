@@ -1780,18 +1780,22 @@ export const useAppStore = create<AppState>()(
         })),
 
       toggleCheckupComplete: (id: string) =>
-        set((state) => ({
-          prenatalCheckups: state.prenatalCheckups.map((c) => {
-            if (c.id !== id) return c;
-            const nowCompleted = !c.completed;
-            return {
-              ...c,
-              completed: nowCompleted,
-              completedDate: nowCompleted ? dateStr(new Date()) : undefined,
-              isOverdue: false,
-            };
-          }),
-        })),
+        set((state) => {
+          const today = dateStr(new Date());
+          return {
+            prenatalCheckups: state.prenatalCheckups.map((c) => {
+              if (c.id !== id) return c;
+              const nowCompleted = !c.completed;
+              const isOverdue = nowCompleted ? false : (!nowCompleted && c.date < today);
+              return {
+                ...c,
+                completed: nowCompleted,
+                completedDate: nowCompleted ? today : undefined,
+                isOverdue,
+              };
+            }),
+          };
+        }),
 
       toggleCheckupCustomItem: (checkupId: string, itemId: string) =>
         set((state) => ({
@@ -1806,6 +1810,17 @@ export const useAppStore = create<AppState>()(
           }),
         })),
 
+      recalculatePrenatalOverdueStatus: () =>
+        set((state) => {
+          const today = dateStr(new Date());
+          return {
+            prenatalCheckups: state.prenatalCheckups.map((c) => ({
+              ...c,
+              isOverdue: !c.completed && c.date < today,
+            })),
+          };
+        }),
+
       getTodayPrenatalTodos: () => {
         const { prenatalCheckups } = get();
         const today = dateStr(new Date());
@@ -1819,8 +1834,7 @@ export const useAppStore = create<AppState>()(
 
       getOverduePrenatalCheckups: () => {
         const { prenatalCheckups } = get();
-        const today = dateStr(new Date());
-        return prenatalCheckups.filter((c) => !c.completed && c.date < today);
+        return prenatalCheckups.filter((c) => c.isOverdue);
       },
 
       addMoodRecord: (record: MoodRecord) =>
@@ -4044,6 +4058,11 @@ export const useAppStore = create<AppState>()(
         reminderRules: state.reminderRules,
         notificationPreferences: state.notificationPreferences,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.recalculatePrenatalOverdueStatus();
+        }
+      },
     }
   )
 );

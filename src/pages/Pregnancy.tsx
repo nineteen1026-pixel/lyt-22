@@ -233,23 +233,28 @@ export default function PregnancyPage() {
       name: newCustomItemName.trim(),
       completed: false,
     };
+    const updatedItems = [...(editingCheckup.customItems || []), newItem];
+    updatePrenatalCheckup(editingCheckup.id, { customItems: updatedItems });
     setEditingCheckup({
       ...editingCheckup,
-      customItems: [...(editingCheckup.customItems || []), newItem],
+      customItems: updatedItems,
     });
     setNewCustomItemName('');
   };
 
   const handleRemoveCustomItem = (itemId: string) => {
     if (!editingCheckup) return;
+    const updatedItems = (editingCheckup.customItems || []).filter((i) => i.id !== itemId);
+    updatePrenatalCheckup(editingCheckup.id, { customItems: updatedItems });
     setEditingCheckup({
       ...editingCheckup,
-      customItems: (editingCheckup.customItems || []).filter((i) => i.id !== itemId),
+      customItems: updatedItems,
     });
   };
 
   const handleToggleCustomItem = (itemId: string) => {
     if (!editingCheckup) return;
+    toggleCheckupCustomItem(editingCheckup.id, itemId);
     setEditingCheckup({
       ...editingCheckup,
       customItems: (editingCheckup.customItems || []).map((i) =>

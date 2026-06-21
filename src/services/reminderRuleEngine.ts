@@ -276,7 +276,7 @@ export function buildRuleContext(state: {
     fertileWindowEnd: string;
   };
   getCyclePhaseForDate: (date: string) => { phase: string };
-  prenatalCheckups: { date: string; type: string; completed: boolean }[];
+  prenatalCheckups: { date: string; type: string; completed: boolean; isOverdue?: boolean }[];
   postpartumCheckups: { date: string; typeName: string; completed: boolean }[];
   medicationReminders: { id: string; active: boolean; times: string[]; name: string; dosage: string; category: string }[];
   medicationRecords: { reminderId: string; date: string; time: string; taken: boolean; skipped: boolean }[];
@@ -318,13 +318,8 @@ export function buildRuleContext(state: {
   const hasUpcomingPostpartumCheckup = upcomingPostpartum.length > 0;
 
   const overduePrenatal = state.prenatalCheckups
-    .filter((c) => !c.completed)
-    .map((c) => {
-      const d = new Date(c.date);
-      const diff = Math.floor((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return { type: c.type, date: c.date, diff };
-    })
-    .filter((c) => c.diff < 0);
+    .filter((c) => c.isOverdue)
+    .map((c) => ({ type: c.type, date: c.date }));
 
   const hasOverduePrenatalCheckup = overduePrenatal.length > 0;
 
