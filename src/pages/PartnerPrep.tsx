@@ -15,6 +15,11 @@ import {
   TrendingUp,
   Zap,
   Baby,
+  Pill,
+  Stethoscope,
+  Smile,
+  BookOpen,
+  EyeOff,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
@@ -52,13 +57,18 @@ export default function PartnerPrep() {
     refreshOvulationWindowShare();
   }, [refreshOvulationWindowShare]);
 
-  const summary = useMemo(() => getPartnerPrepSummary(), [getPartnerPrepSummary, partnerPrepState]);
-  const profile = partnerPrepState.profile;
-  const partner = partnerPrepState.partner;
-  const currentPermissions: PartnerPrepPermissionConfig =
-    viewRole === 'female'
-      ? profile?.permissions ?? defaultPerms()
-      : partner?.permissions ?? defaultPerms();
+  const FULL_PERMISSIONS: PartnerPrepPermissionConfig = {
+    ovulation_window: true,
+    conception_probability: true,
+    temperature_curve: true,
+    lh_test: true,
+    task_details: true,
+    task_completion: true,
+    medication_plan: true,
+    checkup_schedule: true,
+    mood_status: true,
+    lifestyle_notes: true,
+  };
 
   function defaultPerms(): PartnerPrepPermissionConfig {
     return {
@@ -74,6 +84,15 @@ export default function PartnerPrep() {
       lifestyle_notes: true,
     };
   }
+
+  const summary = useMemo(() => getPartnerPrepSummary(), [getPartnerPrepSummary, partnerPrepState]);
+  const profile = partnerPrepState.profile;
+  const partner = partnerPrepState.partner;
+
+  const currentPermissions: PartnerPrepPermissionConfig =
+    viewRole === 'female'
+      ? FULL_PERMISSIONS
+      : partner?.permissions ?? defaultPerms();
 
   const handleGenerateInvite = () => {
     const code = generatePartnerInviteCode();
@@ -114,6 +133,52 @@ export default function PartnerPrep() {
     setShowInit(false);
     setInitName('');
   };
+
+  type PermissionKey = keyof PartnerPrepPermissionConfig;
+
+  function renderPermissionModule(
+    permissionKey: PermissionKey,
+    title: string,
+    Icon: typeof Heart,
+    gradient: string,
+    iconBg: string,
+    iconColor: string,
+    content: React.ReactNode,
+  ) {
+    const hasPermission = currentPermissions[permissionKey];
+    return (
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shadow-sm', iconBg)}>
+              <Icon className={cn('w-5 h-5', iconColor)} />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-800">{title}</h3>
+              <p className="text-xs text-gray-400">
+                {viewRole === 'female' ? '我的数据' : '女方已授权共享'}
+              </p>
+            </div>
+          </div>
+          {!hasPermission && viewRole === 'partner' && (
+            <span className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-500 flex items-center gap-1">
+              <EyeOff className="w-3 h-3" />
+              未授权
+            </span>
+          )}
+        </div>
+        {hasPermission ? (
+          content
+        ) : (
+          <div className="py-8 text-center">
+            <EyeOff className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <p className="text-sm text-gray-400 mb-1">该数据暂未向伴侣开放</p>
+            <p className="text-xs text-gray-300">如需查看，请在权限管理中开启</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const tabs: { key: TabType; label: string; icon: typeof Heart; color: string }[] = [
     { key: 'overview', label: '总览', icon: Activity, color: 'from-rose-400 to-pink-500' },
@@ -423,7 +488,7 @@ export default function PartnerPrep() {
                         task.assignee === 'partner' ? 'bg-sky-50 text-sky-600' :
                         'bg-mint-50 text-mint-600'
                       )}>
-                        {{ female: '女方', partner: '伴侣', both: '双方' }[task.assignee]}
+                        {({ female: '女方', partner: '伴侣', both: '双方' } as const)[task.assignee]}
                       </span>
                     </div>
                   ))}
@@ -450,6 +515,132 @@ export default function PartnerPrep() {
               </button>
             </div>
           )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {renderPermissionModule(
+              'medication_plan',
+              '用药计划',
+              Pill,
+              'from-rose-400 to-pink-500',
+              'bg-rose-100',
+              'text-rose-600',
+              <div className="space-y-3">
+                {[
+                  { name: '叶酸片', time: '每日早餐后', dose: '0.4mg', note: '预防胎儿神经管缺陷' },
+                  { name: '维生素D3', time: '每日午餐后', dose: '1000IU', note: '促进钙吸收' },
+                  { name: '钙片', time: '每日睡前', dose: '600mg', note: '储备骨骼钙质' },
+                ].map((med, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-white/70 rounded-xl">
+                    <div className="w-2 h-2 rounded-full bg-rose-400 mt-2 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm">{med.name}</p>
+                      <p className="text-xs text-gray-500">{med.time} · {med.dose}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{med.note}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {renderPermissionModule(
+              'checkup_schedule',
+              '检查安排',
+              Stethoscope,
+              'from-sky-400 to-blue-500',
+              'bg-sky-100',
+              'text-sky-600',
+              <div className="space-y-3">
+                {[
+                  { name: '孕前全面体检', date: '本月内', status: 'pending', items: '血常规、B超、TORCH、性激素六项' },
+                  { name: '妇科常规检查', date: '月经干净后3-7天', status: 'pending', items: '白带常规、TCT、HPV' },
+                  { name: '口腔检查', date: '备孕前3个月', status: 'done', items: '洗牙、智齿评估' },
+                  { name: '甲状腺功能', date: '已完成', status: 'done', items: 'TSH、FT3、FT4、TPOAb' },
+                ].map((check, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-white/70 rounded-xl">
+                    <div className={cn(
+                      'w-2 h-2 rounded-full mt-2 flex-shrink-0',
+                      check.status === 'done' ? 'bg-emerald-400' : 'bg-sky-400'
+                    )} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-800 text-sm">{check.name}</p>
+                        {check.status === 'done' ? (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600">已完成</span>
+                        ) : (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600">待安排</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{check.date}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">项目：{check.items}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {renderPermissionModule(
+              'mood_status',
+              '情绪状态',
+              Smile,
+              'from-amber-400 to-orange-500',
+              'bg-amber-100',
+              'text-amber-600',
+              <div className="space-y-3">
+                {[
+                  { day: '今天', mood: '😊', label: '愉快', score: 8, note: '今天感觉状态不错，散步了半小时' },
+                  { day: '昨天', mood: '😌', label: '平静', score: 7, note: '工作有点忙，但整体平稳' },
+                  { day: '前天', mood: '😔', label: '低落', score: 4, note: '排卵试纸阴性，有点焦虑' },
+                ].map((m, i) => (
+                  <div key={i} className="p-3 bg-white/70 rounded-xl">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{m.mood}</span>
+                        <span className="font-semibold text-sm text-gray-800">{m.label}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-gray-500">{m.day}</span>
+                        <span className="text-xs font-bold text-amber-600">{m.score}/10</span>
+                      </div>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full"
+                        style={{ width: `${m.score * 10}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1.5">{m.note}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {renderPermissionModule(
+              'lifestyle_notes',
+              '生活备注',
+              BookOpen,
+              'from-mint-400 to-emerald-500',
+              'bg-mint-100',
+              'text-mint-600',
+              <div className="space-y-3">
+                {[
+                  { type: '💤 睡眠', content: '目标 7-8 小时，尽量 23:00 前入睡', tag: '重要' },
+                  { type: '🏃 运动', content: '每周3-4次轻运动：快走、瑜伽、游泳', tag: '规律' },
+                  { type: '🍵 饮食', content: '避免咖啡因、生冷食物；多吃优质蛋白、深绿色蔬菜', tag: '坚持中' },
+                  { type: '🚫 禁忌', content: '戒烟戒酒、避免接触有害物质、不乱服用药物', tag: '严格' },
+                ].map((note, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-white/70 rounded-xl">
+                    <p className="text-sm flex-shrink-0">{note.type}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-700">{note.content}</p>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-mint-50 text-mint-600 flex-shrink-0">
+                      {note.tag}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -461,6 +652,7 @@ export default function PartnerPrep() {
         <PartnerTaskBoard
           viewRole={viewRole}
           canEdit={viewRole === 'female' || (partner?.permissions.task_completion ?? false)}
+          permissions={currentPermissions}
         />
       )}
 

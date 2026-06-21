@@ -9,6 +9,7 @@ import {
   Clock,
   Droplets,
   Star,
+  EyeOff,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
@@ -90,7 +91,7 @@ export default function OvulationWindowSharing({
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {canSeeOvulation && (
+          {canSeeOvulation ? (
             <>
               <div className="p-4 bg-white/70 rounded-xl">
                 <div className="flex items-center gap-2 mb-2">
@@ -116,9 +117,34 @@ export default function OvulationWindowSharing({
                 </p>
               </div>
             </>
-          )}
+          ) : viewRole === 'partner' ? (
+            <>
+              <div className="p-4 bg-white/70 rounded-xl relative">
+                <div className="absolute top-2 right-2">
+                  <EyeOff className="w-3 h-3 text-gray-300" />
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Star className="w-4 h-4 text-gray-300" />
+                  <span className="text-xs text-gray-400">排卵日</span>
+                </div>
+                <p className="text-lg font-bold text-gray-300">--/--</p>
+                <p className="text-xs text-gray-300">未授权</p>
+              </div>
+              <div className="p-4 bg-white/70 rounded-xl relative">
+                <div className="absolute top-2 right-2">
+                  <EyeOff className="w-3 h-3 text-gray-300" />
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Heart className="w-4 h-4 text-gray-300" />
+                  <span className="text-xs text-gray-400">易孕期</span>
+                </div>
+                <p className="text-lg font-bold text-gray-300">--/-- ~ --/--</p>
+                <p className="text-xs text-gray-300">未授权</p>
+              </div>
+            </>
+          ) : null}
 
-          {canSeeProbability && (
+          {canSeeProbability ? (
             <div className="p-4 bg-white/70 rounded-xl">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="w-4 h-4 text-emerald-500" />
@@ -129,9 +155,21 @@ export default function OvulationWindowSharing({
                 {levelLabels[share.conceptionLevel]?.label}
               </span>
             </div>
-          )}
+          ) : viewRole === 'partner' ? (
+            <div className="p-4 bg-white/70 rounded-xl relative">
+              <div className="absolute top-2 right-2">
+                <EyeOff className="w-3 h-3 text-gray-300" />
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-4 h-4 text-gray-300" />
+                <span className="text-xs text-gray-400">今日受孕率</span>
+              </div>
+              <p className="text-lg font-bold text-gray-300">--%</p>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">未授权</span>
+            </div>
+          ) : null}
 
-          {canSeeTemp && (
+          {canSeeTemp ? (
             <div className="p-4 bg-white/70 rounded-xl">
               <div className="flex items-center gap-2 mb-2">
                 <Thermometer className="w-4 h-4 text-orange-500" />
@@ -142,9 +180,21 @@ export default function OvulationWindowSharing({
               </p>
               <p className="text-xs text-gray-400">双相体温确认</p>
             </div>
-          )}
+          ) : viewRole === 'partner' ? (
+            <div className="p-4 bg-white/70 rounded-xl relative">
+              <div className="absolute top-2 right-2">
+                <EyeOff className="w-3 h-3 text-gray-300" />
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <Thermometer className="w-4 h-4 text-gray-300" />
+                <span className="text-xs text-gray-400">体温升高</span>
+              </div>
+              <p className="text-lg font-bold text-gray-300">----</p>
+              <p className="text-xs text-gray-300">未授权</p>
+            </div>
+          ) : null}
 
-          {canSeeLh && share.lhStatus && (
+          {canSeeLh && share.lhStatus ? (
             <div className="p-4 bg-white/70 rounded-xl">
               <div className="flex items-center gap-2 mb-2">
                 <Droplets className="w-4 h-4 text-amber-500" />
@@ -155,9 +205,30 @@ export default function OvulationWindowSharing({
               </span>
               <p className="text-xs text-gray-400 mt-1">最近检测结果</p>
             </div>
-          )}
+          ) : canSeeLh && !share.lhStatus ? (
+            <div className="p-4 bg-white/70 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <Droplets className="w-4 h-4 text-amber-500" />
+                <span className="text-xs text-gray-500">LH试纸</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">暂无数据</span>
+              <p className="text-xs text-gray-400 mt-1">请先记录检测结果</p>
+            </div>
+          ) : viewRole === 'partner' ? (
+            <div className="p-4 bg-white/70 rounded-xl relative">
+              <div className="absolute top-2 right-2">
+                <EyeOff className="w-3 h-3 text-gray-300" />
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <Droplets className="w-4 h-4 text-gray-300" />
+                <span className="text-xs text-gray-400">LH试纸</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">未授权</span>
+              <p className="text-xs text-gray-300 mt-1">----</p>
+            </div>
+          ) : null}
 
-          {!canSeeOvulation && !canSeeProbability && !canSeeTemp && !canSeeLh && (
+          {!canSeeOvulation && !canSeeProbability && !canSeeTemp && !canSeeLh && viewRole === 'female' && (
             <div className="col-span-full p-6 text-center">
               <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300" />
               <p className="text-sm text-gray-400">当前权限无法查看排卵窗口详情</p>
