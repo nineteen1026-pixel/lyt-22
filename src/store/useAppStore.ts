@@ -56,7 +56,17 @@ import type {
   MigrationFieldMapping,
   MigrationPreview,
   MigrationResult,
+  SmartReminder,
+  ReminderRule,
+  ReminderCategory,
+  NotificationPreferences,
 } from '@/types';
+import {
+  defaultReminderRules,
+  defaultNotificationPreferences,
+  buildRuleContext,
+  generateRemindersFromRules,
+} from '@/services/reminderRuleEngine';
 import { useNutritionStore } from '@/store/useNutritionStore';
 import {
   generateMockTemperatureRecords,
@@ -1407,6 +1417,9 @@ export const useAppStore = create<AppState>()(
       activeRehabPlanId: defaultRehabPlanId,
       visitRecords: mockVisitRecords,
       testReports: mockTestReports,
+      smartReminders: [],
+      reminderRules: defaultReminderRules,
+      notificationPreferences: defaultNotificationPreferences,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
@@ -3752,6 +3765,118 @@ export const useAppStore = create<AppState>()(
             d.id === deviceId ? { ...d, ...data } : d
           ),
         })),
+
+      addSmartReminder: (reminder: SmartReminder) =>
+        set((state) => ({
+          smartReminders: [...state.smartReminders, reminder],
+        })),
+
+      updateSmartReminder: (id: string, data: Partial<SmartReminder>) =>
+        set((state) => ({
+          smartReminders: state.smartReminders.map((r) =>
+            r.id === id ? { ...r, ...data } : r
+          ),
+        })),
+
+      deleteSmartReminder: (id: string) =>
+        set((state) => ({
+          smartReminders: state.smartReminders.filter((r) => r.id !== id),
+        })),
+
+      snoozeSmartReminder: (id: string, minutes: number) => {
+        const snoozedUntil = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+        set((state) => ({
+          smartReminders: state.smartReminders.map((r) =>
+            r.id === id ? { ...r, status: 'snoozed' as const, snoozedUntil } : r
+          ),
+        }));
+      },
+
+      completeSmartReminder: (id: string) =>
+        set((state) => ({
+          smartReminders: state.smartReminders.map((r) =>
+            r.id === id ? { ...r, status: 'completed' as const, completedAt: new Date().toISOString() } : r
+          ),
+        })),
+
+      dismissSmartReminder: (id: string) =>
+        set((state) => ({
+          smartReminders: state.smartReminders.map((r) =>
+            r.id === id ? { ...r, status: 'dismissed' as const, dismissedAt: new Date().toISOString() } : r
+          ),
+        })),
+
+      addReminderRule: (rule: ReminderRule) =>
+        set((state) => ({
+          reminderRules: [...state.reminderRules, rule],
+        })),
+
+      updateReminderRule: (id: string, data: Partial<ReminderRule>) =>
+        set((state) => ({
+          reminderRules: state.reminderRules.map((r) =>
+            r.id === id ? { ...r, ...data } : r
+          ),
+        })),
+
+      deleteReminderRule: (id: string) =>
+        set((state) => ({
+          reminderRules: state.reminderRules.filter((r) => r.id !== id),
+        })),
+
+      setNotificationPreferences: (prefs: Partial<NotificationPreferences>) =>
+        set((state) => ({
+          notificationPreferences: { ...state.notificationPreferences, ...prefs },
+        })),
+
+      evaluateRulesAndGenerateReminders: () => {
+        const state = get();
+        const context = buildRuleContext(state);
+        const newReminders = generateRemindersFromRules(
+          state.reminderRules,
+          context,
+          state.smartReminders,
+          state.notificationPreferences
+        );
+        if (newReminders.length > 0) {
+          set((s) => ({
+            smartReminders: [...s.smartReminders, ...newReminders],
+          }));
+        }
+      },
+
+      getActiveReminders: () => {
+        const { smartReminders } = get();
+        const now = new Date();
+        return smartReminders.filter((r) => {
+          if (r.status === 'completed' || r.status === 'dismissed') return false;
+          if (r.status === 'snoozed' && r.snoozedUntil && new Date(r.snoozedUntil) > now) return false;
+          return true;
+        }).sort((a, b) => {
+          const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+          const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+          if (pDiff !== 0) return pDiff;
+          return a.date.localeCompare(b.date);
+        });
+      },
+
+      getRemindersByCategory: (category: ReminderCategory) => {
+        return get().getActiveReminders().filter((r) => r.category === category);
+      },
+
+      getUpcomingReminders: (days: number = 7) => {
+        const { smartReminders } = get();
+        const today = new Date();
+        const endDate = dateStr(addDays(today, days));
+        const todayStr = dateStr(today);
+        return smartReminders
+          .filter((r) => r.status !== 'completed' && r.status !== 'dismissed' && r.date >= todayStr && r.date <= endDate)
+          .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+      },
+
+      getTodayReminders: () => {
+        const today = dateStr(new Date());
+        return get().getUpcomingReminders(1).filter((r) => r.date === today);
+      },
     }),
     {
       name: 'her-cycle-storage',
@@ -3785,6 +3910,9 @@ export const useAppStore = create<AppState>()(
         activeRehabPlanId: state.activeRehabPlanId,
         visitRecords: state.visitRecords,
         testReports: state.testReports,
+        smartReminders: state.smartReminders,
+        reminderRules: state.reminderRules,
+        notificationPreferences: state.notificationPreferences,
       }),
     }
   )

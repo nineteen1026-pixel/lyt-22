@@ -995,6 +995,70 @@ export interface TemperatureStatistics {
   continuousDays: number;
 }
 
+export type ReminderCategory = 'period' | 'ovulation' | 'prenatal' | 'postpartum' | 'medication' | 'custom';
+export type ReminderPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type ReminderStatus = 'pending' | 'active' | 'completed' | 'snoozed' | 'dismissed';
+
+export interface SmartReminder {
+  id: string;
+  category: ReminderCategory;
+  title: string;
+  description: string;
+  date: string;
+  time?: string;
+  priority: ReminderPriority;
+  status: ReminderStatus;
+  ruleId?: string;
+  snoozedUntil?: string;
+  completedAt?: string;
+  dismissedAt?: string;
+  actionUrl?: string;
+  metadata?: Record<string, string>;
+}
+
+export type RuleOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'contains' | 'between';
+export type RuleLogicGate = 'and' | 'or';
+
+export interface RuleCondition {
+  field: string;
+  operator: RuleOperator;
+  value: string | number | string[];
+  label?: string;
+}
+
+export interface ReminderRule {
+  id: string;
+  name: string;
+  description: string;
+  category: ReminderCategory;
+  conditions: RuleCondition[];
+  logicGate: RuleLogicGate;
+  priority: ReminderPriority;
+  titleTemplate: string;
+  descriptionTemplate: string;
+  advanceDays: number;
+  time?: string;
+  active: boolean;
+  builtIn: boolean;
+  createdAt: string;
+}
+
+export interface NotificationCategoryPref {
+  enabled: boolean;
+  advanceDays: number;
+  times: string[];
+}
+
+export interface NotificationPreferences {
+  enabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  snoozeDuration: number;
+  categories: Record<ReminderCategory, NotificationCategoryPref>;
+  soundEnabled: boolean;
+  vibrationEnabled: boolean;
+}
+
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
@@ -1025,6 +1089,9 @@ export interface AppState {
   activeRehabPlanId: string | null;
   visitRecords: VisitRecord[];
   testReports: TestReport[];
+  smartReminders: SmartReminder[];
+  reminderRules: ReminderRule[];
+  notificationPreferences: NotificationPreferences;
   setLifeStage: (stage: LifeStage) => void;
   migrateLifeStage: (targetStage: LifeStage) => MigrationResult;
   getMigrationMapping: (from: LifeStage, to: LifeStage) => MigrationMappingSet;
@@ -1124,4 +1191,19 @@ export interface AppState {
   addBluetoothDevice: (device: Omit<BluetoothDeviceInfo, 'id'>) => void;
   removeBluetoothDevice: (deviceId: string) => void;
   updateBluetoothDevice: (deviceId: string, data: Partial<BluetoothDeviceInfo>) => void;
+  addSmartReminder: (reminder: SmartReminder) => void;
+  updateSmartReminder: (id: string, data: Partial<SmartReminder>) => void;
+  deleteSmartReminder: (id: string) => void;
+  snoozeSmartReminder: (id: string, minutes: number) => void;
+  completeSmartReminder: (id: string) => void;
+  dismissSmartReminder: (id: string) => void;
+  addReminderRule: (rule: ReminderRule) => void;
+  updateReminderRule: (id: string, data: Partial<ReminderRule>) => void;
+  deleteReminderRule: (id: string) => void;
+  setNotificationPreferences: (prefs: Partial<NotificationPreferences>) => void;
+  evaluateRulesAndGenerateReminders: () => void;
+  getActiveReminders: () => SmartReminder[];
+  getRemindersByCategory: (category: ReminderCategory) => SmartReminder[];
+  getUpcomingReminders: (days?: number) => SmartReminder[];
+  getTodayReminders: () => SmartReminder[];
 }
