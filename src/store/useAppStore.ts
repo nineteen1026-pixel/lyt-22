@@ -662,26 +662,34 @@ const mockSleepRecords: SleepRecord[] = (() => {
   return records;
 })();
 
-const mockHormoneRecords: HormoneRecord[] = [
-  {
-    id: generateId(),
-    date: new Date().toISOString().split('T')[0],
-    estrogenLevel: 30,
-    progesteroneLevel: 2,
-    fshLevel: 80,
-    lhLevel: 40,
-    phase: 'perimenopausal',
-  },
-  {
-    id: generateId(),
-    date: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
-    estrogenLevel: 45,
-    progesteroneLevel: 5,
-    fshLevel: 60,
-    lhLevel: 35,
-    phase: 'perimenopausal',
-  },
-];
+const mockHormoneRecords: HormoneRecord[] = (() => {
+  const records: HormoneRecord[] = [];
+  const baseDate = new Date();
+  const phases: ('perimenopausal' | 'follicular' | 'luteal')[] = ['perimenopausal', 'perimenopausal', 'follicular', 'luteal', 'perimenopausal', 'perimenopausal'];
+  
+  for (let i = 0; i < 6; i++) {
+    const date = new Date(baseDate);
+    date.setDate(date.getDate() - i * 14);
+    
+    records.push({
+      id: generateId(),
+      date: date.toISOString().split('T')[0],
+      estrogenLevel: 50 - i * 6 + Math.round(Math.random() * 10),
+      progesteroneLevel: Math.max(0.5, 3 - i * 0.4 + Math.round(Math.random() * 2) * 10) / 10,
+      fshLevel: 30 + i * 10 + Math.round(Math.random() * 15),
+      lhLevel: 20 + i * 4 + Math.round(Math.random() * 8),
+      amhLevel: Math.max(0.1, 1.8 - i * 0.25 + Math.round(Math.random() * 5) / 10),
+      tshLevel: 2.5 + Math.round(Math.random() * 10) / 10,
+      testosteroneLevel: 35 + Math.round(Math.random() * 15),
+      prolactinLevel: 12 + Math.round(Math.random() * 8),
+      phase: phases[i % phases.length],
+      hospital: i === 0 ? '市妇幼保健院' : undefined,
+      notes: i === 0 ? '定期复查，观察激素变化趋势' : undefined,
+    });
+  }
+  
+  return records.sort((a, b) => b.date.localeCompare(a.date));
+})();
 
 const buildDefaultRehabPhases = (): RehabPhase[] => {
   const phase1Exercises: RehabExercise[] = [

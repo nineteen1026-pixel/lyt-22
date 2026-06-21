@@ -4,12 +4,12 @@ import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
 import HotFlashRecorder from '@/components/menopause/HotFlashRecorder';
 import SleepMonitor from '@/components/menopause/SleepMonitor';
-import HormoneAnalysis from '@/components/menopause/HormoneAnalysis';
+import HormoneLabTracker from '@/components/hormone/HormoneLabTracker';
 
 const tabs = [
   { id: 'hotflash', label: '潮热记录', icon: '🔥' },
   { id: 'sleep', label: '睡眠监测', icon: '🌙' },
-  { id: 'hormone', label: '激素分析', icon: '📊' },
+  { id: 'hormone', label: '激素化验追踪', icon: '📊' },
 ] as const;
 
 type TabId = (typeof tabs)[number]['id'];
@@ -23,7 +23,7 @@ const healthTips = [
 
 export default function MenopauseCare() {
   const [activeTab, setActiveTab] = useState<TabId>('hotflash');
-  const { cycleData, hotFlashRecords, sleepRecords } = useAppStore();
+  const { cycleData, hotFlashRecords, sleepRecords, hormoneRecords, addHormoneRecord } = useAppStore();
 
   const daysSinceLastPeriod = cycleData.lastPeriodDate
     ? Math.floor((Date.now() - new Date(cycleData.lastPeriodDate).getTime()) / (1000 * 60 * 60 * 24))
@@ -62,6 +62,9 @@ export default function MenopauseCare() {
             <span className="px-3 py-1 bg-white rounded-full text-sm font-medium text-indigo-500">
               睡眠 {sleepRecords.length}条
             </span>
+            <span className="px-3 py-1 bg-white rounded-full text-sm font-medium text-fuchsia-500">
+              激素化验 {hormoneRecords.length}次
+            </span>
             {daysSinceLastPeriod !== null && (
               <span className="px-3 py-1 bg-white rounded-full text-sm font-medium text-rose-500">
                 经期 {daysSinceLastPeriod}天前
@@ -92,7 +95,9 @@ export default function MenopauseCare() {
       <div className="mb-8">
         {activeTab === 'hotflash' && <HotFlashRecorder />}
         {activeTab === 'sleep' && <SleepMonitor />}
-        {activeTab === 'hormone' && <HormoneAnalysis />}
+        {activeTab === 'hormone' && (
+          <HormoneLabTracker records={hormoneRecords} onAddRecord={addHormoneRecord} />
+        )}
       </div>
 
       <div>
