@@ -349,15 +349,27 @@ export default function ReminderCenter() {
 }
 
 function ReminderCard({ reminder }: { reminder: SmartReminder }) {
-  const { completeSmartReminder, dismissSmartReminder, snoozeSmartReminder } = useAppStore();
+  const { completeSmartReminder, dismissSmartReminder, snoozeSmartReminder, notificationPreferences } = useAppStore();
   const meta = categoryMeta[reminder.category];
   const pMeta = priorityMeta[reminder.priority];
   const Icon = categoryIcons[reminder.category];
 
   const isToday = reminder.date === new Date().toISOString().split('T')[0];
 
+  const borderColorMap: Record<ReminderCategory, string> = {
+    period: '#f43f5e',
+    ovulation: '#f59e0b',
+    prenatal: '#0ea5e9',
+    postpartum: '#d946ef',
+    medication: '#8b5cf6',
+    custom: '#14b8a6',
+  };
+
   return (
-    <div className={cn('card p-4 bg-gradient-to-r', meta.bg, 'border-l-4', `border-l-${reminder.category === 'period' ? 'rose' : reminder.category === 'ovulation' ? 'amber' : reminder.category === 'prenatal' ? 'sky' : reminder.category === 'postpartum' ? 'fuchsia' : reminder.category === 'medication' ? 'violet' : 'teal'}-400`)}>
+    <div
+      className={cn('card p-4 bg-gradient-to-r border-l-4', meta.bg)}
+      style={{ borderLeftColor: borderColorMap[reminder.category] }}
+    >
       <div className="flex items-start gap-3">
         <div className={cn('w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0', meta.gradient)}>
           <Icon className="w-5 h-5 text-white" />
@@ -365,7 +377,10 @@ function ReminderCard({ reminder }: { reminder: SmartReminder }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h4 className="font-bold text-gray-800 text-sm truncate">{reminder.title}</h4>
-            <span className={cn('text-xs px-1.5 py-0.5 rounded-full flex-shrink-0', pMeta.color, 'bg-opacity-10', `${pMeta.dot}/10`)}>
+            <span
+              className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 font-medium"
+              style={{ color: pMeta.color === 'text-red-500' ? '#ef4444' : pMeta.color === 'text-orange-500' ? '#f97316' : pMeta.color === 'text-blue-500' ? '#3b82f6' : '#6b7280', backgroundColor: 'rgba(255,255,255,0.6)' }}
+            >
               {pMeta.label}
             </span>
           </div>
@@ -384,7 +399,7 @@ function ReminderCard({ reminder }: { reminder: SmartReminder }) {
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </button>
           <button
-            onClick={() => snoozeSmartReminder(reminder.id, notificationPreferences_from_store().snoozeDuration)}
+            onClick={() => snoozeSmartReminder(reminder.id, notificationPreferences.snoozeDuration)}
             className="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors"
             title="贪睡"
           >
@@ -401,10 +416,6 @@ function ReminderCard({ reminder }: { reminder: SmartReminder }) {
       </div>
     </div>
   );
-}
-
-function notificationPreferences_from_store() {
-  return useAppStore.getState().notificationPreferences;
 }
 
 function RuleCard({

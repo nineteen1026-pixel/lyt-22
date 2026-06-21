@@ -6,6 +6,9 @@ import type {
   ReminderPriority,
   NotificationPreferences,
   NotificationCategoryPref,
+  MedicationReminder,
+  MedicationRecord,
+  ReminderStatus,
 } from '@/types';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -427,4 +430,159 @@ export function createCustomRule(partial: Partial<ReminderRule>): ReminderRule {
     builtIn: false,
     createdAt: dateStr(new Date()),
   };
+}
+
+export function isTimeInQuietHours(time: string, quietStart: string, quietEnd: string): boolean {
+  const toMinutes = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const t = toMinutes(time);
+  const s = toMinutes(quietStart);
+  const e = toMinutes(quietEnd);
+  if (s <= e) {
+    return t >= s && t <= e;
+  }
+  return t >= s || t <= e;
+}
+
+export function isReminderInQuietHours(
+  reminder: SmartReminder,
+  prefs: NotificationPreferences
+): boolean {
+  if (!reminder.time) return false;
+  return isTimeInQuietHours(reminder.time, prefs.quietHoursStart, prefs.quietHoursEnd);
+}
+
+export function filterRemindersByQuietHours(
+  reminders: SmartReminder[],
+  prefs: NotificationPreferences
+): SmartReminder[] {
+  if (!prefs.enabled) return [];
+  const now = new Date();
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const nowInQuiet = isTimeInQuietHours(currentTime, prefs.quietHoursStart, prefs.quietHoursEnd);
+  if (!nowInQuiet) return reminders;
+  return reminders.filter((r) => !isReminderInQuietHours(r, prefs));
+}
+
+const medicationCategoryToReminderCategory = (cat: string): ReminderCategory => {
+  switch (cat) {
+    case 'dysmenorrhea': return 'medication';
+    case 'pregnancy': return 'medication';
+    case 'ovulation': return 'medication';
+    default: return 'medication';
+  }
+};
+
+export function generateMedicationSmartReminders(
+  medicationReminders: MedicationReminder[],
+  medicationRecords: MedicationRecord[],
+  existingSmartReminders: SmartReminder[],
+  prefs: NotificationPreferences,
+  days: number = 7
+): SmartReminder[] {
+  const today = new Date();
+  const todayStr = dateStr(today);
+  const newReminders: SmartReminder[] = [];
+
+  const categoryPref = prefs.categories.medication;
+  if (!categoryPref?.enabled || !prefs.enabled) return [];
+
+  const existingMedKeys = new Set(
+    existingSmartReminders
+      .filter((r) => r.category === 'medication' && (r.status === 'pending' || r.status === 'active' || r.status === 'snoozed'))
+      .map((r) => `${r.metadata?.medicationId}-${r.date}-${r.time}`)
+  );
+
+  for (const med of medicationReminders) {
+    if (!med.active) continue;
+
+    for (let dayOffset = 0; dayOffset < days; dayOffset++) {
+      const targetDate = dateStr(addDays(today, dayOffset));
+
+      if (med.startDate > targetDate) continue;
+      if (med.endDate && med.endDate < targetDate) continue;
+
+      for (const time of med.times) {
+        const dedupeKey = `${med.id}-${targetDate}-${time}`;
+        if (existingMedKeys.has(dedupeKey)) continue;
+
+        const record = medicationRecords.find(
+          (r) => r.reminderId === med.id && r.date === targetDate && r.time === time
+        );
+
+        let status: ReminderStatus = 'pending';
+        let completedAt: string | undefined;
+        let dismissedAt: string | undefined;
+
+        if (record) {
+          if (record.taken) {
+            status = 'completed';
+            completedAt = record.date;
+          } else if (record.skipped) {
+            status = 'dismissed';
+            dismissedAt = record.date;
+          }
+        }
+
+        const isToday = targetDate === todayStr;
+        const isPast = targetDate < todayStr;
+        const timePassed = isToday && time < `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+
+        if (isPast || (isToday && timePassed && status === 'pending')) {
+          continue;
+        }
+
+        let priority: ReminderPriority = 'medium';
+        if (med.category === 'dysmenorrhea') priority = 'high';
+        if (med.category === 'pregnancy') priority = 'high';
+
+        newReminders.push({
+          id: generateId(),
+          category: medicationCategoryToReminderCategory(med.category),
+          title: `${med.name} - 服药提醒`,
+          description: `剂量：${med.dosage}${med.notes ? ` | ${med.notes}` : ''}`,
+          date: targetDate,
+          time,
+          priority,
+          status,
+          completedAt,
+          dismissedAt,
+          metadata: {
+            medicationId: med.id,
+            medicationName: med.name,
+            medicationCategory: med.category,
+            dosage: med.dosage,
+            frequency: med.frequency,
+          },
+        });
+      }
+    }
+  }
+
+  return newReminders;
+}
+
+export function syncMedicationRecordsToSmartReminders(
+  smartReminders: SmartReminder[],
+  medicationRecords: MedicationRecord[]
+): SmartReminder[] {
+  return smartReminders.map((reminder) => {
+    if (reminder.category !== 'medication' || !reminder.metadata?.medicationId) {
+      return reminder;
+    }
+    const medId = reminder.metadata.medicationId;
+    const record = medicationRecords.find(
+      (r) => r.reminderId === medId && r.date === reminder.date && r.time === reminder.time
+    );
+    if (!record) return reminder;
+    if (record.taken && reminder.status !== 'completed') {
+      return { ...reminder, status: 'completed' as const, completedAt: record.date };
+    }
+    if (record.skipped && reminder.status !== 'dismissed') {
+      return { ...reminder, status: 'dismissed' as const, dismissedAt: record.date };
+    }
+    return reminder;
+  });
 }

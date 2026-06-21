@@ -66,6 +66,9 @@ import {
   defaultNotificationPreferences,
   buildRuleContext,
   generateRemindersFromRules,
+  generateMedicationSmartReminders,
+  syncMedicationRecordsToSmartReminders,
+  filterRemindersByQuietHours,
 } from '@/services/reminderRuleEngine';
 import { useNutritionStore } from '@/store/useNutritionStore';
 import {
@@ -3792,20 +3795,6 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      completeSmartReminder: (id: string) =>
-        set((state) => ({
-          smartReminders: state.smartReminders.map((r) =>
-            r.id === id ? { ...r, status: 'completed' as const, completedAt: new Date().toISOString() } : r
-          ),
-        })),
-
-      dismissSmartReminder: (id: string) =>
-        set((state) => ({
-          smartReminders: state.smartReminders.map((r) =>
-            r.id === id ? { ...r, status: 'dismissed' as const, dismissedAt: new Date().toISOString() } : r
-          ),
-        })),
-
       addReminderRule: (rule: ReminderRule) =>
         set((state) => ({
           reminderRules: [...state.reminderRules, rule],
@@ -3830,32 +3819,48 @@ export const useAppStore = create<AppState>()(
 
       evaluateRulesAndGenerateReminders: () => {
         const state = get();
+
+        const syncedReminders = syncMedicationRecordsToSmartReminders(
+          state.smartReminders,
+          state.medicationRecords
+        );
+
         const context = buildRuleContext(state);
-        const newReminders = generateRemindersFromRules(
+        const ruleReminders = generateRemindersFromRules(
           state.reminderRules,
           context,
-          state.smartReminders,
+          syncedReminders,
           state.notificationPreferences
         );
-        if (newReminders.length > 0) {
-          set((s) => ({
-            smartReminders: [...s.smartReminders, ...newReminders],
-          }));
+
+        const medReminders = generateMedicationSmartReminders(
+          state.medicationReminders,
+          state.medicationRecords,
+          syncedReminders,
+          state.notificationPreferences,
+          7
+        );
+
+        const allNew = [...ruleReminders, ...medReminders];
+        if (allNew.length > 0 || syncedReminders.length !== state.smartReminders.length) {
+          set({ smartReminders: [...syncedReminders, ...allNew] });
         }
       },
 
       getActiveReminders: () => {
-        const { smartReminders } = get();
+        const { smartReminders, notificationPreferences } = get();
         const now = new Date();
-        return smartReminders.filter((r) => {
+        const active = smartReminders.filter((r) => {
           if (r.status === 'completed' || r.status === 'dismissed') return false;
           if (r.status === 'snoozed' && r.snoozedUntil && new Date(r.snoozedUntil) > now) return false;
           return true;
-        }).sort((a, b) => {
+        });
+        const filtered = filterRemindersByQuietHours(active, notificationPreferences);
+        return filtered.sort((a, b) => {
           const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
           const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
           if (pDiff !== 0) return pDiff;
-          return a.date.localeCompare(b.date);
+          return a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '');
         });
       },
 
@@ -3864,11 +3869,13 @@ export const useAppStore = create<AppState>()(
       },
 
       getUpcomingReminders: (days: number = 7) => {
-        const { smartReminders } = get();
+        const state = get();
         const today = new Date();
         const endDate = dateStr(addDays(today, days));
         const todayStr = dateStr(today);
-        return smartReminders
+        const synced = syncMedicationRecordsToSmartReminders(state.smartReminders, state.medicationRecords);
+        const filtered = filterRemindersByQuietHours(synced, state.notificationPreferences);
+        return filtered
           .filter((r) => r.status !== 'completed' && r.status !== 'dismissed' && r.date >= todayStr && r.date <= endDate)
           .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
       },
@@ -3877,6 +3884,70 @@ export const useAppStore = create<AppState>()(
         const today = dateStr(new Date());
         return get().getUpcomingReminders(1).filter((r) => r.date === today);
       },
+
+      completeSmartReminder: (id: string) =>
+        set((state) => {
+          const reminder = state.smartReminders.find((r) => r.id === id);
+          const updates: Partial<AppState> = {
+            smartReminders: state.smartReminders.map((r) =>
+              r.id === id ? { ...r, status: 'completed' as const, completedAt: new Date().toISOString() } : r
+            ),
+          };
+          if (reminder?.category === 'medication' && reminder.metadata?.medicationId) {
+            const medId = reminder.metadata.medicationId;
+            const todayStr = dateStr(new Date());
+            const recordId = generateId();
+            const existingRecord = state.medicationRecords.find(
+              (r) => r.reminderId === medId && r.date === (reminder.date || todayStr) && r.time === reminder.time
+            );
+            if (!existingRecord) {
+              updates.medicationRecords = [
+                ...state.medicationRecords,
+                {
+                  id: recordId,
+                  reminderId: medId,
+                  date: reminder.date || todayStr,
+                  time: reminder.time || '09:00',
+                  taken: true,
+                  skipped: false,
+                },
+              ];
+            }
+          }
+          return updates;
+        }),
+
+      dismissSmartReminder: (id: string) =>
+        set((state) => {
+          const reminder = state.smartReminders.find((r) => r.id === id);
+          const updates: Partial<AppState> = {
+            smartReminders: state.smartReminders.map((r) =>
+              r.id === id ? { ...r, status: 'dismissed' as const, dismissedAt: new Date().toISOString() } : r
+            ),
+          };
+          if (reminder?.category === 'medication' && reminder.metadata?.medicationId) {
+            const medId = reminder.metadata.medicationId;
+            const todayStr = dateStr(new Date());
+            const recordId = generateId();
+            const existingRecord = state.medicationRecords.find(
+              (r) => r.reminderId === medId && r.date === (reminder.date || todayStr) && r.time === reminder.time
+            );
+            if (!existingRecord) {
+              updates.medicationRecords = [
+                ...state.medicationRecords,
+                {
+                  id: recordId,
+                  reminderId: medId,
+                  date: reminder.date || todayStr,
+                  time: reminder.time || '09:00',
+                  taken: false,
+                  skipped: true,
+                },
+              ];
+            }
+          }
+          return updates;
+        }),
     }),
     {
       name: 'her-cycle-storage',
