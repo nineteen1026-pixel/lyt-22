@@ -28,7 +28,7 @@ import type {
 
 interface HormoneLabTrackerProps {
   records: HormoneRecord[];
-  onAddRecord: (record: Omit<HormoneRecord, 'id'>) => void;
+  onAddRecord: (record: HormoneRecord) => void;
 }
 
 const phaseLabels: Record<HormonePhase, string> = {
@@ -384,7 +384,8 @@ export default function HormoneLabTracker({ records, onAddRecord }: HormoneLabTr
   }, [latestRecord]);
 
   const handleSubmit = () => {
-    const recordData: Omit<HormoneRecord, 'id'> = {
+    const recordData: HormoneRecord = {
+      id: generateId(),
       date: testDate,
       phase: selectedPhase,
       hospital: hospital || undefined,

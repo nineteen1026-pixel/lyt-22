@@ -2023,7 +2023,13 @@ export const useAppStore = create<AppState>()(
 
       addHormoneRecord: (record: HormoneRecord) =>
         set((state) => ({
-          hormoneRecords: [...state.hormoneRecords, record],
+          hormoneRecords: [
+            ...state.hormoneRecords,
+            {
+              ...record,
+              id: record.id || generateId(),
+            },
+          ],
         })),
 
       getCurrentWeek: () => {
