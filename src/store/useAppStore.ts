@@ -60,6 +60,13 @@ import type {
   ReminderRule,
   ReminderCategory,
   NotificationPreferences,
+  PartnerPrepState,
+  PartnerPrepProfile,
+  PartnerPrepTask,
+  PartnerPrepPermissionConfig,
+  OvulationWindowShare,
+  PartnerPrepSummary,
+  PartnerTaskAssignee,
 } from '@/types';
 import {
   defaultReminderRules,
@@ -1384,6 +1391,146 @@ const mockTemperatureRecords: TemperatureRecord[] = generateMockTemperatureRecor
 
 const mockTemperatureAlerts: TemperatureAnomalyAlert[] = [];
 
+const defaultPartnerPrepPermissions: PartnerPrepPermissionConfig = {
+  ovulation_window: true,
+  conception_probability: true,
+  temperature_curve: false,
+  lh_test: false,
+  task_details: true,
+  task_completion: true,
+  medication_plan: true,
+  checkup_schedule: true,
+  mood_status: false,
+  lifestyle_notes: true,
+};
+
+const mockPartnerPrepTasks: PartnerPrepTask[] = [
+  {
+    id: generateId(),
+    title: '服用叶酸',
+    description: '每日0.4mg叶酸片，预防神经管缺陷',
+    category: 'medication',
+    assignee: 'female',
+    priority: 'high',
+    dueDate: new Date().toISOString().split('T')[0],
+    completed: true,
+    completedAt: new Date().toISOString().split('T')[0],
+    completedBy: 'female',
+    recurring: 'daily',
+    createdAt: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
+  },
+  {
+    id: generateId(),
+    title: '记录基础体温',
+    description: '每天清晨醒来后立即测量',
+    category: 'lifestyle',
+    assignee: 'female',
+    priority: 'high',
+    dueDate: new Date().toISOString().split('T')[0],
+    completed: false,
+    recurring: 'daily',
+    createdAt: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
+  },
+  {
+    id: generateId(),
+    title: '排卵试纸检测',
+    description: '从周期第10天开始每天检测LH',
+    category: 'checkup',
+    assignee: 'female',
+    priority: 'high',
+    dueDate: new Date().toISOString().split('T')[0],
+    completed: false,
+    recurring: 'daily',
+    createdAt: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0],
+  },
+  {
+    id: generateId(),
+    title: '准备营养餐食',
+    description: '为双方准备富含锌、叶酸、维E的食物',
+    category: 'nutrition',
+    assignee: 'both',
+    priority: 'medium',
+    dueDate: new Date().toISOString().split('T')[0],
+    completed: false,
+    recurring: 'daily',
+    createdAt: new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0],
+  },
+  {
+    id: generateId(),
+    title: '戒烟戒酒',
+    description: '双方均需戒烟戒酒，提高精子与卵子质量',
+    category: 'lifestyle',
+    assignee: 'both',
+    priority: 'high',
+    dueDate: new Date().toISOString().split('T')[0],
+    completed: false,
+    notes: '这是最重要的备孕准备之一',
+    createdAt: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+  },
+  {
+    id: generateId(),
+    title: '适度运动',
+    description: '每天30分钟中等强度运动',
+    category: 'exercise',
+    assignee: 'partner',
+    priority: 'medium',
+    dueDate: new Date().toISOString().split('T')[0],
+    completed: false,
+    recurring: 'daily',
+    createdAt: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
+  },
+  {
+    id: generateId(),
+    title: '孕前检查预约',
+    description: '双方前往医院做全面孕前检查',
+    category: 'checkup',
+    assignee: 'both',
+    priority: 'high',
+    dueDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
+    completed: false,
+    createdAt: new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0],
+  },
+  {
+    id: generateId(),
+    title: '关注伴侣情绪',
+    description: '备孕期间给予更多关怀与陪伴',
+    category: 'emotion',
+    assignee: 'partner',
+    priority: 'medium',
+    dueDate: new Date().toISOString().split('T')[0],
+    completed: false,
+    recurring: 'daily',
+    createdAt: new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0],
+  },
+];
+
+const initialPartnerPrepState: PartnerPrepState = {
+  profile: {
+    id: generateId(),
+    name: '我',
+    role: 'female',
+    permissions: defaultPartnerPrepPermissions,
+    joinedAt: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+    active: true,
+  },
+  partner: {
+    id: generateId(),
+    name: '亲爱的',
+    role: 'partner',
+    permissions: {
+      ...defaultPartnerPrepPermissions,
+      temperature_curve: false,
+      lh_test: false,
+      mood_status: false,
+    },
+    joinedAt: new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0],
+    active: true,
+  },
+  tasks: mockPartnerPrepTasks,
+  ovulationWindowShare: null,
+  inviteCode: null,
+};
+
 const mockBluetoothDevices: BluetoothDeviceInfo[] = [
   {
     id: 'bt-001',
@@ -1431,6 +1578,7 @@ export const useAppStore = create<AppState>()(
       smartReminders: [],
       reminderRules: defaultReminderRules,
       notificationPreferences: defaultNotificationPreferences,
+      partnerPrepState: initialPartnerPrepState,
 
       setLifeStage: (stage: LifeStage) => set({ lifeStage: stage }),
 
@@ -4035,6 +4183,198 @@ export const useAppStore = create<AppState>()(
           }
           return updates;
         }),
+
+      initPartnerPrep: (name: string) =>
+        set((state) => ({
+          partnerPrepState: {
+            ...state.partnerPrepState,
+            profile: {
+              id: generateId(),
+              name,
+              role: 'female',
+              permissions: defaultPartnerPrepPermissions,
+              joinedAt: dateStr(new Date()),
+              active: true,
+            },
+          },
+        })),
+
+      joinPartnerPrep: (inviteCode: string, name: string): boolean => {
+        const state = get();
+        if (state.partnerPrepState.inviteCode !== inviteCode) return false;
+        if (state.partnerPrepState.partner) return false;
+        set({
+          partnerPrepState: {
+            ...state.partnerPrepState,
+            partner: {
+              id: generateId(),
+              name,
+              role: 'partner',
+              permissions: {
+                ovulation_window: true,
+                conception_probability: true,
+                temperature_curve: false,
+                lh_test: false,
+                task_details: true,
+                task_completion: true,
+                medication_plan: true,
+                checkup_schedule: true,
+                mood_status: false,
+                lifestyle_notes: true,
+              },
+              joinedAt: dateStr(new Date()),
+              active: true,
+            },
+            inviteCode: null,
+          },
+        });
+        return true;
+      },
+
+      updatePartnerPrepPermissions: (role: 'female' | 'partner', permissions: PartnerPrepPermissionConfig) =>
+        set((state) => {
+          const key = role === 'female' ? 'profile' : 'partner';
+          const target = state.partnerPrepState[key];
+          if (!target) return state;
+          return {
+            partnerPrepState: {
+              ...state.partnerPrepState,
+              [key]: { ...target, permissions },
+            },
+          };
+        }),
+
+      addPartnerPrepTask: (task: Omit<PartnerPrepTask, 'id' | 'createdAt'>) =>
+        set((state) => ({
+          partnerPrepState: {
+            ...state.partnerPrepState,
+            tasks: [
+              ...state.partnerPrepState.tasks,
+              { ...task, id: generateId(), createdAt: dateStr(new Date()) },
+            ],
+          },
+        })),
+
+      updatePartnerPrepTask: (id: string, data: Partial<PartnerPrepTask>) =>
+        set((state) => ({
+          partnerPrepState: {
+            ...state.partnerPrepState,
+            tasks: state.partnerPrepState.tasks.map((t) =>
+              t.id === id ? { ...t, ...data } : t
+            ),
+          },
+        })),
+
+      deletePartnerPrepTask: (id: string) =>
+        set((state) => ({
+          partnerPrepState: {
+            ...state.partnerPrepState,
+            tasks: state.partnerPrepState.tasks.filter((t) => t.id !== id),
+          },
+        })),
+
+      togglePartnerPrepTask: (id: string, completedBy: 'female' | 'partner') =>
+        set((state) => ({
+          partnerPrepState: {
+            ...state.partnerPrepState,
+            tasks: state.partnerPrepState.tasks.map((t) => {
+              if (t.id !== id) return t;
+              const nowCompleted = !t.completed;
+              return {
+                ...t,
+                completed: nowCompleted,
+                completedAt: nowCompleted ? dateStr(new Date()) : undefined,
+                completedBy: nowCompleted ? completedBy : undefined,
+              };
+            }),
+          },
+        })),
+
+      refreshOvulationWindowShare: () => {
+        const state = get();
+        const pred = state.getPeriodPrediction();
+        const ovulationDate = state.getOvulationDate();
+        const adjustedOvDate = state.getAdjustedOvulationDate();
+        const todayStr = dateStr(new Date());
+        const todayProb = state.getConceptionProbability(todayStr);
+
+        const fertileStart = adjustedOvDate || pred.fertileWindowStart;
+        const fertileEnd = adjustedOvDate
+          ? dateStr(addDays(new Date(adjustedOvDate), 1))
+          : pred.fertileWindowEnd;
+
+        const ovDate = new Date(ovulationDate);
+        const today = new Date();
+        const daysUntilOvulation = Math.ceil((ovDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const isActive = today >= new Date(fertileStart) && today <= new Date(fertileEnd);
+
+        const latestLhRecord = [...state.ovulationRecords]
+          .filter((r) => r.lhTest && r.lhTest !== 'none')
+          .sort((a, b) => b.date.localeCompare(a.date))[0];
+
+        const share: OvulationWindowShare = {
+          fertileStart,
+          fertileEnd,
+          ovulationDate,
+          adjustedOvulationDate: adjustedOvDate || undefined,
+          conceptionProbability: todayProb?.probability ?? 0,
+          conceptionLevel: todayProb?.level ?? 'low',
+          daysUntilOvulation,
+          isActive,
+          lhStatus: latestLhRecord?.lhTest === 'strong_positive' ? 'strong_positive'
+            : latestLhRecord?.lhTest === 'positive' ? 'positive'
+            : latestLhRecord?.lhTest === 'faint' ? 'faint'
+            : latestLhRecord?.lhTest === 'negative' ? 'negative' : undefined,
+          tempShiftDetected: state.ovulationRecords.some((r) => r.tempShift),
+          updatedAt: new Date().toISOString(),
+        };
+
+        set((s) => ({
+          partnerPrepState: {
+            ...s.partnerPrepState,
+            ovulationWindowShare: share,
+          },
+        }));
+      },
+
+      getPartnerPrepSummary: (): PartnerPrepSummary => {
+        const state = get();
+        const tasks = state.partnerPrepState.tasks;
+        const todayStr = dateStr(new Date());
+        const activeTasks = tasks.filter((t) => !t.completed);
+        const completedToday = tasks.filter((t) => t.completedAt === todayStr);
+        const share = state.partnerPrepState.ovulationWindowShare;
+        return {
+          activeTasks: activeTasks.length,
+          completedToday: completedToday.length,
+          totalTasks: tasks.length,
+          ovulationWindowActive: share?.isActive ?? false,
+          daysUntilOvulation: share?.daysUntilOvulation ?? null,
+          partnerOnline: state.partnerPrepState.partner?.active ?? false,
+          completionRate: tasks.length > 0 ? Math.round((tasks.filter((t) => t.completed).length / tasks.length) * 100) : 0,
+        };
+      },
+
+      getPartnerPrepTasksByAssignee: (assignee: PartnerTaskAssignee): PartnerPrepTask[] => {
+        const tasks = get().partnerPrepState.tasks;
+        if (assignee === 'both') return tasks.filter((t) => t.assignee === 'both');
+        return tasks.filter((t) => t.assignee === assignee || t.assignee === 'both');
+      },
+
+      generatePartnerInviteCode: (): string => {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let code = 'PP';
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        set((state) => ({
+          partnerPrepState: {
+            ...state.partnerPrepState,
+            inviteCode: code,
+          },
+        }));
+        return code;
+      },
     }),
     {
       name: 'her-cycle-storage',
@@ -4071,6 +4411,7 @@ export const useAppStore = create<AppState>()(
         smartReminders: state.smartReminders,
         reminderRules: state.reminderRules,
         notificationPreferences: state.notificationPreferences,
+        partnerPrepState: state.partnerPrepState,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

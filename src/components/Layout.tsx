@@ -1,5 +1,5 @@
 import { NavLink, Link } from 'react-router-dom';
-import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Leaf, Dumbbell, Smile, Palette, Flower2, Pill, UtensilsCrossed, Moon, Users, Eye, BarChart3, Cross, BellRing } from 'lucide-react';
+import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Leaf, Dumbbell, Smile, Palette, Flower2, Pill, UtensilsCrossed, Moon, Users, Eye, BarChart3, Cross, BellRing, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { to: '/teen', label: '少女期', icon: Sparkles },
   { to: '/career', label: '职场期', icon: Briefcase },
   { to: '/pregnancy-prep', label: '备孕期', icon: Baby },
+  { to: '/partner-prep', label: '伴侣协同', icon: UserCheck },
   { to: '/pregnancy', label: '孕期', icon: Stethoscope },
   { to: '/postpartum', label: '产后恢复', icon: Leaf },
   { to: '/rehab', label: '运动康复', icon: Dumbbell },

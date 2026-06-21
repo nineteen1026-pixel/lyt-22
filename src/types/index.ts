@@ -1137,6 +1137,92 @@ export interface NotificationPreferences {
   vibrationEnabled: boolean;
 }
 
+export type PartnerPrepPermission =
+  | 'ovulation_window'
+  | 'conception_probability'
+  | 'temperature_curve'
+  | 'lh_test'
+  | 'task_details'
+  | 'task_completion'
+  | 'medication_plan'
+  | 'checkup_schedule'
+  | 'mood_status'
+  | 'lifestyle_notes';
+
+export interface PartnerPrepPermissionConfig {
+  ovulation_window: boolean;
+  conception_probability: boolean;
+  temperature_curve: boolean;
+  lh_test: boolean;
+  task_details: boolean;
+  task_completion: boolean;
+  medication_plan: boolean;
+  checkup_schedule: boolean;
+  mood_status: boolean;
+  lifestyle_notes: boolean;
+}
+
+export type PartnerTaskAssignee = 'female' | 'partner' | 'both';
+export type PartnerTaskCategory = 'medication' | 'lifestyle' | 'checkup' | 'nutrition' | 'emotion' | 'exercise' | 'other';
+export type PartnerTaskPriority = 'low' | 'medium' | 'high';
+
+export interface PartnerPrepTask {
+  id: string;
+  title: string;
+  description?: string;
+  category: PartnerTaskCategory;
+  assignee: PartnerTaskAssignee;
+  priority: PartnerTaskPriority;
+  dueDate: string;
+  completed: boolean;
+  completedAt?: string;
+  completedBy?: 'female' | 'partner';
+  recurring?: 'daily' | 'weekly' | 'monthly' | 'none';
+  notes?: string;
+  createdAt: string;
+}
+
+export interface OvulationWindowShare {
+  fertileStart: string;
+  fertileEnd: string;
+  ovulationDate: string;
+  adjustedOvulationDate?: string;
+  conceptionProbability: number;
+  conceptionLevel: 'low' | 'medium' | 'high' | 'peak';
+  daysUntilOvulation: number;
+  isActive: boolean;
+  lhStatus?: 'negative' | 'faint' | 'positive' | 'strong_positive';
+  tempShiftDetected: boolean;
+  updatedAt: string;
+}
+
+export interface PartnerPrepProfile {
+  id: string;
+  name: string;
+  role: 'female' | 'partner';
+  permissions: PartnerPrepPermissionConfig;
+  joinedAt: string;
+  active: boolean;
+}
+
+export interface PartnerPrepState {
+  profile: PartnerPrepProfile | null;
+  partner: PartnerPrepProfile | null;
+  tasks: PartnerPrepTask[];
+  ovulationWindowShare: OvulationWindowShare | null;
+  inviteCode: string | null;
+}
+
+export interface PartnerPrepSummary {
+  activeTasks: number;
+  completedToday: number;
+  totalTasks: number;
+  ovulationWindowActive: boolean;
+  daysUntilOvulation: number | null;
+  partnerOnline: boolean;
+  completionRate: number;
+}
+
 export interface AppState {
   lifeStage: LifeStage;
   cycleData: CycleData;
@@ -1170,6 +1256,7 @@ export interface AppState {
   smartReminders: SmartReminder[];
   reminderRules: ReminderRule[];
   notificationPreferences: NotificationPreferences;
+  partnerPrepState: PartnerPrepState;
   setLifeStage: (stage: LifeStage) => void;
   migrateLifeStage: (targetStage: LifeStage) => MigrationResult;
   getMigrationMapping: (from: LifeStage, to: LifeStage) => MigrationMappingSet;
@@ -1290,4 +1377,15 @@ export interface AppState {
   getRemindersByCategory: (category: ReminderCategory) => SmartReminder[];
   getUpcomingReminders: (days?: number) => SmartReminder[];
   getTodayReminders: () => SmartReminder[];
+  initPartnerPrep: (name: string) => void;
+  joinPartnerPrep: (inviteCode: string, name: string) => boolean;
+  updatePartnerPrepPermissions: (role: 'female' | 'partner', permissions: PartnerPrepPermissionConfig) => void;
+  addPartnerPrepTask: (task: Omit<PartnerPrepTask, 'id' | 'createdAt'>) => void;
+  updatePartnerPrepTask: (id: string, data: Partial<PartnerPrepTask>) => void;
+  deletePartnerPrepTask: (id: string) => void;
+  togglePartnerPrepTask: (id: string, completedBy: 'female' | 'partner') => void;
+  refreshOvulationWindowShare: () => void;
+  getPartnerPrepSummary: () => PartnerPrepSummary;
+  getPartnerPrepTasksByAssignee: (assignee: PartnerTaskAssignee) => PartnerPrepTask[];
+  generatePartnerInviteCode: () => string;
 }
