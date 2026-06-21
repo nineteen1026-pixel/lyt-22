@@ -21,38 +21,35 @@ import HealthReport from "@/pages/HealthReport";
 import Vault from "@/pages/Vault";
 import MedicalAssistant from "@/pages/MedicalAssistant";
 import ReminderCenter from "@/pages/ReminderCenter";
-import { MedicationReminderProvider } from "@/components/medication/MedicationReminderContext";
 
 export default function App() {
   return (
     <Router>
-      <MedicationReminderProvider>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/teen" element={<Teen />} />
-            <Route path="/career" element={<Career />} />
-            <Route path="/pregnancy-prep" element={<PregnancyPrep />} />
-            <Route path="/pregnancy" element={<Pregnancy />} />
-            <Route path="/postpartum" element={<Postpartum />} />
-            <Route path="/rehab" element={<Rehab />} />
-            <Route path="/relief" element={<Relief />} />
-            <Route path="/medication" element={<Medication />} />
-            <Route path="/mood" element={<Mood />} />
-            <Route path="/menopause" element={<MenopauseCare />} />
-            <Route path="/nutrition" element={<Nutrition />} />
-            <Route path="/sleep" element={<Sleep />} />
-            <Route path="/family" element={<Family />} />
-            <Route path="/family-viewer" element={<FamilyViewer />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/community/:id" element={<CommunityDetail />} />
-            <Route path="/health-report" element={<HealthReport />} />
-            <Route path="/vault" element={<Vault />} />
-            <Route path="/medical-assistant" element={<MedicalAssistant />} />
-            <Route path="/reminder-center" element={<ReminderCenter />} />
-          </Routes>
-        </Layout>
-      </MedicationReminderProvider>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/teen" element={<Teen />} />
+          <Route path="/career" element={<Career />} />
+          <Route path="/pregnancy-prep" element={<PregnancyPrep />} />
+          <Route path="/pregnancy" element={<Pregnancy />} />
+          <Route path="/postpartum" element={<Postpartum />} />
+          <Route path="/rehab" element={<Rehab />} />
+          <Route path="/relief" element={<Relief />} />
+          <Route path="/medication" element={<Medication />} />
+          <Route path="/mood" element={<Mood />} />
+          <Route path="/menopause" element={<MenopauseCare />} />
+          <Route path="/nutrition" element={<Nutrition />} />
+          <Route path="/sleep" element={<Sleep />} />
+          <Route path="/family" element={<Family />} />
+          <Route path="/family-viewer" element={<FamilyViewer />} />
+          <Route path="/community" element={<Community />} />
+          <Route path="/community/:id" element={<CommunityDetail />} />
+          <Route path="/health-report" element={<HealthReport />} />
+          <Route path="/vault" element={<Vault />} />
+          <Route path="/medical-assistant" element={<MedicalAssistant />} />
+          <Route path="/reminder-center" element={<ReminderCenter />} />
+        </Routes>
+      </Layout>
     </Router>
   );
 }

@@ -463,7 +463,7 @@ export function filterRemindersByQuietHours(
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const nowInQuiet = isTimeInQuietHours(currentTime, prefs.quietHoursStart, prefs.quietHoursEnd);
   if (!nowInQuiet) return reminders;
-  return reminders.filter((r) => !isReminderInQuietHours(r, prefs));
+  return [];
 }
 
 const medicationCategoryToReminderCategory = (cat: string): ReminderCategory => {

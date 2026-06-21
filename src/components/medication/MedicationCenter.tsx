@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
-import { useMedicationReminderContext } from '@/components/medication/MedicationReminderContext';
 import type { MedicationCategory, MedicationReminder } from '@/types';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -82,11 +81,13 @@ export default function MedicationCenter() {
     prenatalCheckups,
   } = useAppStore();
 
-  const { openRecordDialog } = useMedicationReminderContext();
-
   const [activeCategory, setActiveCategory] = useState<MedicationCategory | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [recordDialogReminder, setRecordDialogReminder] = useState<MedicationReminder | null>(null);
+  const [recordDialogTime, setRecordDialogTime] = useState('');
+  const [recordSideEffects, setRecordSideEffects] = useState('');
+  const [recordNotes, setRecordNotes] = useState('');
 
   const [newReminder, setNewReminder] = useState<Partial<MedicationReminder>>({
     category: 'dysmenorrhea',
@@ -332,7 +333,10 @@ export default function MedicationCenter() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              openRecordDialog(reminder, time);
+                              setRecordDialogReminder(reminder);
+                              setRecordDialogTime(time);
+                              setRecordSideEffects('');
+                              setRecordNotes('');
                             }}
                             className="px-2 py-0.5 text-xs bg-emerald-500 text-white rounded-full hover:bg-emerald-600 transition-colors"
                           >
@@ -709,6 +713,87 @@ export default function MedicationCenter() {
                   className="flex-1 bg-gradient-to-r from-violet-400 to-purple-500 text-white px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {recordDialogReminder && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="card p-6 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Pill className="w-5 h-5 text-violet-500" />
+                <h2 className="text-lg font-bold text-gray-800">记录服药</h2>
+              </div>
+              <button
+                onClick={() => setRecordDialogReminder(null)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="mb-4 p-3 bg-violet-50 rounded-xl">
+              <p className="font-medium text-gray-800">{recordDialogReminder.name}</p>
+              <p className="text-xs text-gray-500">
+                {recordDialogReminder.dosage} · {recordDialogTime}
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">不良反应 (可选)</label>
+                <input
+                  type="text"
+                  value={recordSideEffects}
+                  onChange={(e) => setRecordSideEffects(e.target.value)}
+                  placeholder="如: 胃部不适"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">备注 (可选)</label>
+                <input
+                  type="text"
+                  value={recordNotes}
+                  onChange={(e) => setRecordNotes(e.target.value)}
+                  placeholder="其他备注"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none transition-all"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    handleSkipMedicineDirect(recordDialogReminder.id, recordDialogTime);
+                    setRecordDialogReminder(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-full font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all"
+                >
+                  跳过
+                </button>
+                <button
+                  onClick={() => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const existing = medicationRecords.find(
+                      (r) => r.reminderId === recordDialogReminder!.id && r.date === todayStr && r.time === recordDialogTime
+                    );
+                    if (!existing) {
+                      addMedicationRecord({
+                        id: generateId(),
+                        reminderId: recordDialogReminder.id,
+                        date: todayStr,
+                        time: recordDialogTime,
+                        taken: true,
+                        skipped: false,
+                        sideEffects: recordSideEffects || undefined,
+                        notes: recordNotes || undefined,
+                      });
+                    }
+                    setRecordDialogReminder(null);
+                  }}
+                  className="flex-1 bg-gradient-to-r from-emerald-400 to-teal-500 text-white py-2.5 rounded-full font-medium shadow-lg hover:shadow-xl transition-all"
+                >
+                  确认服药
                 </button>
               </div>
             </div>

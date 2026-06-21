@@ -21,10 +21,11 @@ import {
   ChevronDown,
   ChevronUp,
   Zap,
+  Moon,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
-import { categoryMeta, priorityMeta, createCustomRule } from '@/services/reminderRuleEngine';
+import { categoryMeta, priorityMeta, createCustomRule, isTimeInQuietHours } from '@/services/reminderRuleEngine';
 import NotificationPreferences from '@/components/reminder/NotificationPreferences';
 import type { ReminderCategory, ReminderRule, SmartReminder, RuleCondition, RuleOperator, RuleLogicGate, ReminderPriority } from '@/types';
 
@@ -72,6 +73,11 @@ export default function ReminderCenter() {
   useEffect(() => {
     evaluateRulesAndGenerateReminders();
   }, [evaluateRulesAndGenerateReminders]);
+
+  const now = new Date();
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const inQuietHours = notificationPreferences.enabled &&
+    isTimeInQuietHours(currentTime, notificationPreferences.quietHoursStart, notificationPreferences.quietHoursEnd);
 
   const todayReminders = getTodayReminders();
   const upcomingReminders = getUpcomingReminders(7);
@@ -314,6 +320,20 @@ export default function ReminderCenter() {
           </button>
         </div>
       </div>
+
+      {inQuietHours && (
+        <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-slate-50 border border-indigo-100">
+          <div className="flex items-center gap-3">
+            <Moon className="w-5 h-5 text-indigo-500" />
+            <div>
+              <p className="font-bold text-indigo-700 text-sm">免打扰时段生效中</p>
+              <p className="text-xs text-indigo-500">
+                当前处于免打扰时段（{notificationPreferences.quietHoursStart} ~ {notificationPreferences.quietHoursEnd}），所有提醒通知已静默，到期后自动恢复推送
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card p-2 mb-6 overflow-x-auto">
         <div className="flex gap-1 min-w-max">
