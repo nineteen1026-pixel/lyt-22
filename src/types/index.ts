@@ -1389,3 +1389,53 @@ export interface AppState {
   getPartnerPrepTasksByAssignee: (assignee: PartnerTaskAssignee) => PartnerPrepTask[];
   generatePartnerInviteCode: () => string;
 }
+
+export type KnowledgeResourceType = 'article' | 'audio';
+export type KnowledgeDifficulty = 'beginner' | 'intermediate' | 'advanced';
+
+export interface KnowledgeArticle {
+  id: string;
+  title: string;
+  summary: string;
+  content: string[];
+  category: string;
+  tags: string[];
+  lifeStage: LifeStage;
+  type: KnowledgeResourceType;
+  difficulty: KnowledgeDifficulty;
+  author: string;
+  authorAvatar?: string;
+  isExpert: boolean;
+  coverImage?: string;
+  audioUrl?: string;
+  audioDuration?: number;
+  readTimeMinutes: number;
+  views: number;
+  likes: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
+  createdAt: string;
+  updatedAt: string;
+  relatedIds: string[];
+}
+
+export interface KnowledgeTopic {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  lifeStage: LifeStage;
+  articleCount: number;
+  audioCount: number;
+  color: string;
+  gradient: string;
+  tags: string[];
+}
+
+export interface LifeStageKnowledge {
+  lifeStage: LifeStage;
+  topics: KnowledgeTopic[];
+  featuredArticles: KnowledgeArticle[];
+  totalArticles: number;
+  totalAudios: number;
+}

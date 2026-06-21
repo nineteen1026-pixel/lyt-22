@@ -1,5 +1,5 @@
 import { NavLink, Link } from 'react-router-dom';
-import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Leaf, Dumbbell, Smile, Palette, Flower2, Pill, UtensilsCrossed, Moon, Users, Eye, BarChart3, Cross, BellRing, UserCheck } from 'lucide-react';
+import { Heart, Sparkles, Briefcase, Baby, Stethoscope, Leaf, Dumbbell, Smile, Palette, Flower2, Pill, UtensilsCrossed, Moon, Users, Eye, BarChart3, Cross, BellRing, UserCheck, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/relief', label: '痛经舒缓', icon: Smile },
   { to: '/medical-assistant', label: '就医助手', icon: Cross },
   { to: '/reminder-center', label: '提醒中心', icon: BellRing },
+  { to: '/knowledge', label: '知识库', icon: BookOpen },
   { to: '/sleep', label: '睡眠与周期', icon: Moon },
   { to: '/nutrition', label: '营养膳食', icon: UtensilsCrossed },
   { to: '/medication', label: '用药提醒', icon: Pill },

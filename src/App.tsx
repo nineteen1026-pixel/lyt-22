@@ -22,6 +22,8 @@ import Vault from "@/pages/Vault";
 import MedicalAssistant from "@/pages/MedicalAssistant";
 import ReminderCenter from "@/pages/ReminderCenter";
 import PartnerPrep from "@/pages/PartnerPrep";
+import KnowledgeBase from "@/pages/KnowledgeBase";
+import KnowledgeDetail from "@/pages/KnowledgeDetail";
 
 export default function App() {
   return (
@@ -50,6 +52,8 @@ export default function App() {
           <Route path="/medical-assistant" element={<MedicalAssistant />} />
           <Route path="/reminder-center" element={<ReminderCenter />} />
           <Route path="/partner-prep" element={<PartnerPrep />} />
+          <Route path="/knowledge" element={<KnowledgeBase />} />
+          <Route path="/knowledge/:id" element={<KnowledgeDetail />} />
         </Routes>
       </Layout>
     </Router>
