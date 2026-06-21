@@ -110,6 +110,12 @@ export interface OvulationRecord {
   fertileWindow: boolean;
 }
 
+export interface PrenatalCheckupCustomItem {
+  id: string;
+  name: string;
+  completed: boolean;
+}
+
 export interface PrenatalCheckup {
   id: string;
   date: string;
@@ -121,6 +127,11 @@ export interface PrenatalCheckup {
   bloodPressure?: string;
   babyHeartbeat?: number;
   completed: boolean;
+  customItems?: PrenatalCheckupCustomItem[];
+  remindDaysBefore?: number;
+  isOverdue?: boolean;
+  completedDate?: string;
+  hospital?: string;
 }
 
 export interface MoodRecord {
@@ -1100,7 +1111,11 @@ export interface AppState {
   addOvertimeRecord: (record: OvertimeRecord) => void;
   addOvulationRecord: (record: OvulationRecord) => void;
   addPrenatalCheckup: (checkup: PrenatalCheckup) => void;
+  updatePrenatalCheckup: (id: string, data: Partial<PrenatalCheckup>) => void;
+  deletePrenatalCheckup: (id: string) => void;
   toggleCheckupComplete: (id: string) => void;
+  getTodayPrenatalTodos: () => PrenatalCheckup[];
+  getOverduePrenatalCheckups: () => PrenatalCheckup[];
   addMoodRecord: (record: MoodRecord) => void;
   addHotFlashRecord: (record: HotFlashRecord) => void;
   addSleepRecord: (record: SleepRecord) => void;

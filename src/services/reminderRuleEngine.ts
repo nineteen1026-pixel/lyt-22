@@ -5,7 +5,6 @@ import type {
   ReminderCategory,
   ReminderPriority,
   NotificationPreferences,
-  NotificationCategoryPref,
   MedicationReminder,
   MedicationRecord,
   ReminderStatus,
@@ -129,6 +128,24 @@ export const defaultReminderRules: ReminderRule[] = [
     createdAt: new Date().toISOString().split('T')[0],
   },
   {
+    id: 'rule-prenatal-checkup-overdue',
+    name: '产检逾期提醒',
+    description: '产检日期已过但未完成时发出逾期提醒',
+    category: 'prenatal',
+    conditions: [
+      { field: 'hasOverduePrenatalCheckup', operator: 'eq', value: 'true', label: '存在逾期产检' },
+    ],
+    logicGate: 'and',
+    priority: 'urgent',
+    titleTemplate: '产检逾期提醒',
+    descriptionTemplate: '您的{checkupType}（预约日期{checkupDate}）已逾期，请尽快安排补检',
+    advanceDays: 0,
+    time: '08:00',
+    active: true,
+    builtIn: true,
+    createdAt: new Date().toISOString().split('T')[0],
+  },
+  {
     id: 'rule-postpartum-checkup',
     name: '产后复查提醒',
     description: '产后复查日期前3天自动提醒',
@@ -191,12 +208,14 @@ interface RuleContext {
   isInFertileWindow?: boolean;
   hasUpcomingPrenatalCheckup?: boolean;
   hasUpcomingPostpartumCheckup?: boolean;
+  hasOverduePrenatalCheckup?: boolean;
   hasMissedMedication?: boolean;
   todayPainLevel?: number;
   predictedNextPeriod?: string;
   predictedOvulation?: string;
   upcomingPrenatalCheckups?: { type: string; date: string }[];
   upcomingPostpartumCheckups?: { name: string; date: string }[];
+  overduePrenatalCheckups?: { type: string; date: string }[];
   missedMedications?: { name: string; dosage: string; time: string }[];
 }
 
@@ -298,6 +317,17 @@ export function buildRuleContext(state: {
   const hasUpcomingPrenatalCheckup = upcomingPrenatal.length > 0;
   const hasUpcomingPostpartumCheckup = upcomingPostpartum.length > 0;
 
+  const overduePrenatal = state.prenatalCheckups
+    .filter((c) => !c.completed)
+    .map((c) => {
+      const d = new Date(c.date);
+      const diff = Math.floor((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return { type: c.type, date: c.date, diff };
+    })
+    .filter((c) => c.diff < 0);
+
+  const hasOverduePrenatalCheckup = overduePrenatal.length > 0;
+
   const missedMeds: { name: string; dosage: string; time: string }[] = [];
   const now = new Date();
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -322,12 +352,14 @@ export function buildRuleContext(state: {
     isInFertileWindow,
     hasUpcomingPrenatalCheckup,
     hasUpcomingPostpartumCheckup,
+    hasOverduePrenatalCheckup,
     hasMissedMedication: missedMeds.length > 0,
     todayPainLevel: state.getTodayPainLevel(),
     predictedNextPeriod: pred.predictedNextStart,
     predictedOvulation: ovDate,
     upcomingPrenatalCheckups: upcomingPrenatal.map((c) => ({ type: c.type, date: c.date })),
     upcomingPostpartumCheckups: upcomingPostpartum.map((c) => ({ name: c.name, date: c.date })),
+    overduePrenatalCheckups: overduePrenatal.map((c) => ({ type: c.type, date: c.date })),
     missedMedications: missedMeds,
   };
 }
@@ -345,7 +377,6 @@ export function generateRemindersFromRules(
   existingReminders: SmartReminder[],
   prefs: NotificationPreferences
 ): SmartReminder[] {
-  const today = dateStr(new Date());
   const newReminders: SmartReminder[] = [];
 
   const existingKeys = new Set(
@@ -373,8 +404,8 @@ export function generateRemindersFromRules(
       predictedDate: context.predictedNextPeriod,
       predictedOvulation: context.predictedOvulation,
       painLevel: context.todayPainLevel,
-      checkupType: context.upcomingPrenatalCheckups?.[0]?.type,
-      checkupDate: context.upcomingPrenatalCheckups?.[0]?.date || context.upcomingPostpartumCheckups?.[0]?.date,
+      checkupType: context.upcomingPrenatalCheckups?.[0]?.type || context.overduePrenatalCheckups?.[0]?.type,
+      checkupDate: context.upcomingPrenatalCheckups?.[0]?.date || context.upcomingPostpartumCheckups?.[0]?.date || context.overduePrenatalCheckups?.[0]?.date,
       checkupName: context.upcomingPostpartumCheckups?.[0]?.name,
     };
 

@@ -1757,12 +1757,50 @@ export const useAppStore = create<AppState>()(
           prenatalCheckups: [...state.prenatalCheckups, checkup],
         })),
 
-      toggleCheckupComplete: (id: string) =>
+      updatePrenatalCheckup: (id: string, data: Partial<PrenatalCheckup>) =>
         set((state) => ({
           prenatalCheckups: state.prenatalCheckups.map((c) =>
-            c.id === id ? { ...c, completed: !c.completed } : c
+            c.id === id ? { ...c, ...data } : c
           ),
         })),
+
+      deletePrenatalCheckup: (id: string) =>
+        set((state) => ({
+          prenatalCheckups: state.prenatalCheckups.filter((c) => c.id !== id),
+        })),
+
+      toggleCheckupComplete: (id: string) =>
+        set((state) => ({
+          prenatalCheckups: state.prenatalCheckups.map((c) => {
+            if (c.id !== id) return c;
+            const nowCompleted = !c.completed;
+            return {
+              ...c,
+              completed: nowCompleted,
+              completedDate: nowCompleted ? new Date().toISOString().split('T')[0] : undefined,
+              isOverdue: nowCompleted ? false : c.isOverdue,
+            };
+          }),
+        })),
+
+      getTodayPrenatalTodos: () => {
+        const { prenatalCheckups } = get();
+        const today = new Date().toISOString().split('T')[0];
+        return prenatalCheckups.filter((c) => {
+          if (c.completed) return false;
+          const checkupDate = c.date;
+          const remindDays = c.remindDaysBefore ?? 3;
+          const remindDate = addDays(new Date(checkupDate), -remindDays);
+          const remindDateStr = dateStr(remindDate);
+          return today >= remindDateStr && today <= checkupDate;
+        });
+      },
+
+      getOverduePrenatalCheckups: () => {
+        const { prenatalCheckups } = get();
+        const today = new Date().toISOString().split('T')[0];
+        return prenatalCheckups.filter((c) => !c.completed && c.date < today);
+      },
 
       addMoodRecord: (record: MoodRecord) =>
         set((state) => ({

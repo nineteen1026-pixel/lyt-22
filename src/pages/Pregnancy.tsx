@@ -11,15 +11,22 @@ import {
   Plus,
   X,
   Clock,
-  ChevronRight,
   Settings,
   Pill,
   ArrowRight,
   Cross,
+  AlertTriangle,
+  Trash2,
+  Edit3,
+  CheckSquare,
+  Square,
+  PlusCircle,
+  MinusCircle,
+  Building2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
-import type { PrenatalCheckup } from '@/types';
+import type { PrenatalCheckup, PrenatalCheckupCustomItem } from '@/types';
 import { useNavigate } from 'react-router-dom';
 
 const pregnancyKnowledge = [
@@ -93,7 +100,9 @@ export default function PregnancyPage() {
     medicationReminders,
     getTodayMedicationSchedule,
     visitRecords,
-    getVisitRecordsByDate,
+    updatePrenatalCheckup,
+    deletePrenatalCheckup,
+    getOverduePrenatalCheckups,
   } = useAppStore();
 
   const navigate = useNavigate();
@@ -105,6 +114,9 @@ export default function PregnancyPage() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCheckup, setEditingCheckup] = useState<PrenatalCheckup | null>(null);
+  const [newCustomItemName, setNewCustomItemName] = useState('');
   const [newCheckup, setNewCheckup] = useState<Partial<PrenatalCheckup>>({
     date: new Date().toISOString().split('T')[0],
     week: 12,
@@ -132,6 +144,7 @@ export default function PregnancyPage() {
   const currentWeek = getCurrentWeek();
   const dueDate = getDueDate();
   const babyInfo = getBabyInfo(currentWeek);
+  const overdueCheckups = getOverduePrenatalCheckups();
 
   const handleAddCheckup = () => {
     if (newCheckup.date && newCheckup.type) {
@@ -146,6 +159,9 @@ export default function PregnancyPage() {
         bloodPressure: newCheckup.bloodPressure,
         babyHeartbeat: newCheckup.babyHeartbeat,
         completed: false,
+        remindDaysBefore: newCheckup.remindDaysBefore ?? 3,
+        customItems: newCheckup.customItems ?? [],
+        hospital: newCheckup.hospital ?? '',
       } as PrenatalCheckup);
       setShowAddModal(false);
       setNewCheckup({
@@ -155,6 +171,9 @@ export default function PregnancyPage() {
         doctor: '',
         notes: '',
         completed: false,
+        remindDaysBefore: 3,
+        customItems: [],
+        hospital: '',
       });
     }
   };
@@ -183,6 +202,60 @@ export default function PregnancyPage() {
   };
 
   const daysUntilDue = getDaysUntilDue();
+
+  const handleEditCheckup = (checkup: PrenatalCheckup) => {
+    setEditingCheckup({ ...checkup });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditCheckup = () => {
+    if (editingCheckup) {
+      const today = new Date().toISOString().split('T')[0];
+      const isNowOverdue = !editingCheckup.completed && editingCheckup.date < today;
+      updatePrenatalCheckup(editingCheckup.id, {
+        ...editingCheckup,
+        isOverdue: isNowOverdue,
+      });
+      setShowEditModal(false);
+      setEditingCheckup(null);
+    }
+  };
+
+  const handleDeleteCheckup = (id: string) => {
+    deletePrenatalCheckup(id);
+  };
+
+  const handleAddCustomItem = () => {
+    if (!editingCheckup || !newCustomItemName.trim()) return;
+    const newItem: PrenatalCheckupCustomItem = {
+      id: generateId(),
+      name: newCustomItemName.trim(),
+      completed: false,
+    };
+    setEditingCheckup({
+      ...editingCheckup,
+      customItems: [...(editingCheckup.customItems || []), newItem],
+    });
+    setNewCustomItemName('');
+  };
+
+  const handleRemoveCustomItem = (itemId: string) => {
+    if (!editingCheckup) return;
+    setEditingCheckup({
+      ...editingCheckup,
+      customItems: (editingCheckup.customItems || []).filter((i) => i.id !== itemId),
+    });
+  };
+
+  const handleToggleCustomItem = (itemId: string) => {
+    if (!editingCheckup) return;
+    setEditingCheckup({
+      ...editingCheckup,
+      customItems: (editingCheckup.customItems || []).map((i) =>
+        i.id === itemId ? { ...i, completed: !i.completed } : i
+      ),
+    });
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -287,6 +360,40 @@ export default function PregnancyPage() {
           </div>
         </div>
       </div>
+
+      {overdueCheckups.length > 0 && (
+        <div className="card p-5 mb-8 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200">
+          <div className="flex items-center gap-3 mb-3">
+            <AlertTriangle className="w-5 h-5 text-red-500" />
+            <h3 className="font-bold text-red-700">逾期产检提醒</h3>
+            <span className="text-sm text-red-500">{overdueCheckups.length} 项已逾期</span>
+          </div>
+          <div className="space-y-2">
+            {overdueCheckups.map((c) => (
+              <div key={c.id} className="flex items-center justify-between p-3 bg-white/70 rounded-xl">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{c.type}</p>
+                  <p className="text-xs text-red-500">预约日期: {c.date} · 第{c.week}周</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEditCheckup(c)}
+                    className="text-xs px-3 py-1.5 bg-sky-100 text-sky-600 rounded-full hover:bg-sky-200 transition-colors"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    onClick={() => toggleCheckupComplete(c.id)}
+                    className="text-xs px-3 py-1.5 bg-mint-100 text-mint-600 rounded-full hover:bg-mint-200 transition-colors"
+                  >
+                    完成
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card p-5 mb-8 bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200">
         <div className="flex items-center justify-between">
@@ -400,40 +507,85 @@ export default function PregnancyPage() {
               <div className="mb-6">
                 <h3 className="text-sm font-medium text-gray-500 mb-3">待完成</h3>
                 <div className="space-y-3">
-                  {upcoming.map((checkup) => (
-                    <div
-                      key={checkup.id}
-                      className="p-4 rounded-xl bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-100 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          <button
-                            onClick={() => toggleCheckupComplete(checkup.id)}
-                            className="mt-0.5"
-                          >
-                            <Circle className="w-5 h-5 text-sky-400 hover:text-sky-500" />
-                          </button>
-                          <div>
-                            <h4 className="font-bold text-gray-800">{checkup.type}</h4>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {checkup.date} · 第{checkup.week}周
-                            </p>
-                            {checkup.doctor && (
-                              <p className="text-sm text-gray-400 mt-1">
-                                医生：{checkup.doctor}
+                  {upcoming.map((c) => {
+                    const isOverdue = c.date < new Date().toISOString().split('T')[0];
+                    return (
+                      <div
+                        key={c.id}
+                        className={cn(
+                          'p-4 rounded-xl hover:shadow-md transition-shadow border',
+                          isOverdue
+                            ? 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
+                            : 'bg-gradient-to-r from-sky-50 to-blue-50 border-sky-100'
+                        )}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <button
+                              onClick={() => toggleCheckupComplete(c.id)}
+                              className="mt-0.5"
+                            >
+                              <Circle className="w-5 h-5 text-sky-400 hover:text-sky-500" />
+                            </button>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-gray-800">{c.type}</h4>
+                                {isOverdue && (
+                                  <span className="flex items-center gap-1 text-xs text-red-500 font-medium">
+                                    <AlertTriangle className="w-3.5 h-3.5" />
+                                    已逾期
+                                  </span>
+                                )}
+                                {c.customItems && c.customItems.length > 0 && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-600">
+                                    {c.customItems.filter((i) => i.completed).length}/{c.customItems.length} 项
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {c.date} · 第{c.week}周
                               </p>
-                            )}
-                            {checkup.notes && (
-                              <p className="text-sm text-gray-500 mt-2 bg-white/50 p-2 rounded-lg">
-                                {checkup.notes}
-                              </p>
-                            )}
+                              {c.hospital && (
+                                <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                                  <Building2 className="w-3.5 h-3.5" />
+                                  {c.hospital}
+                                </p>
+                              )}
+                              {c.doctor && (
+                                <p className="text-sm text-gray-400 mt-1">
+                                  医生：{c.doctor}
+                                </p>
+                              )}
+                              {c.remindDaysBefore && c.remindDaysBefore > 0 && (
+                                <p className="text-xs text-amber-500 mt-1">
+                                  提前 {c.remindDaysBefore} 天提醒
+                                </p>
+                              )}
+                              {c.notes && (
+                                <p className="text-sm text-gray-500 mt-2 bg-white/50 p-2 rounded-lg">
+                                  {c.notes}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleEditCheckup(c)}
+                              className="p-1.5 rounded-lg hover:bg-white/70 transition-colors"
+                            >
+                              <Edit3 className="w-4 h-4 text-gray-400 hover:text-sky-500" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCheckup(c.id)}
+                              className="p-1.5 rounded-lg hover:bg-white/70 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                            </button>
                           </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-300" />
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -442,48 +594,85 @@ export default function PregnancyPage() {
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-3">已完成</h3>
                 <div className="space-y-3">
-                  {completed.map((checkup) => (
+                  {completed.map((c) => (
                     <div
-                      key={checkup.id}
+                      key={c.id}
                       className="p-4 rounded-xl bg-gray-50 border border-gray-100 opacity-75"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">
                           <button
-                            onClick={() => toggleCheckupComplete(checkup.id)}
+                            onClick={() => toggleCheckupComplete(c.id)}
                             className="mt-0.5"
                           >
                             <CheckCircle2 className="w-5 h-5 text-mint-500" fill="currentColor" />
                           </button>
                           <div>
                             <h4 className="font-medium text-gray-600 line-through">
-                              {checkup.type}
+                              {c.type}
                             </h4>
                             <p className="text-sm text-gray-400 mt-1">
-                              {checkup.date} · 第{checkup.week}周
+                              {c.date} · 第{c.week}周
+                              {c.completedDate && (
+                                <span className="ml-2">完成于 {c.completedDate}</span>
+                              )}
                             </p>
+                            {c.hospital && (
+                              <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                                <Building2 className="w-3.5 h-3.5" />
+                                {c.hospital}
+                              </p>
+                            )}
+                            {c.customItems && c.customItems.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {c.customItems.map((item) => (
+                                  <span
+                                    key={item.id}
+                                    className={cn(
+                                      'text-xs px-2 py-0.5 rounded-full flex items-center gap-1',
+                                      item.completed
+                                        ? 'bg-mint-100 text-mint-600'
+                                        : 'bg-gray-100 text-gray-400'
+                                    )}
+                                  >
+                                    {item.completed ? (
+                                      <CheckSquare className="w-3 h-3" />
+                                    ) : (
+                                      <Square className="w-3 h-3" />
+                                    )}
+                                    {item.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             <div className="flex flex-wrap gap-3 mt-2">
-                              {checkup.weight && (
+                              {c.weight && (
                                 <span className="text-xs text-gray-500 flex items-center gap-1">
                                   <Scale className="w-3 h-3" />
-                                  {checkup.weight}kg
+                                  {c.weight}kg
                                 </span>
                               )}
-                              {checkup.bloodPressure && (
+                              {c.bloodPressure && (
                                 <span className="text-xs text-gray-500 flex items-center gap-1">
                                   <Activity className="w-3 h-3" />
-                                  {checkup.bloodPressure}
+                                  {c.bloodPressure}
                                 </span>
                               )}
-                              {checkup.babyHeartbeat && (
+                              {c.babyHeartbeat && (
                                 <span className="text-xs text-gray-500 flex items-center gap-1">
                                   <Heart className="w-3 h-3" />
-                                  {checkup.babyHeartbeat}次/分
+                                  {c.babyHeartbeat}次/分
                                 </span>
                               )}
                             </div>
                           </div>
                         </div>
+                        <button
+                          onClick={() => handleEditCheckup(c)}
+                          className="p-1.5 rounded-lg hover:bg-white/70 transition-colors"
+                        >
+                          <Edit3 className="w-4 h-4 text-gray-400 hover:text-sky-500" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -584,6 +773,29 @@ export default function PregnancyPage() {
               </div>
 
               <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">医院</label>
+                <input
+                  type="text"
+                  value={newCheckup.hospital || ''}
+                  onChange={(e) => setNewCheckup({ ...newCheckup, hospital: e.target.value })}
+                  placeholder="可选"
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">提前提醒天数</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={30}
+                  value={newCheckup.remindDaysBefore ?? 3}
+                  onChange={(e) => setNewCheckup({ ...newCheckup, remindDaysBefore: Number(e.target.value) })}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                />
+              </div>
+
+              <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">备注</label>
                 <textarea
                   value={newCheckup.notes || ''}
@@ -592,6 +804,68 @@ export default function PregnancyPage() {
                   rows={3}
                   className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all resize-none"
                 />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">自定义检查项</label>
+                <div className="space-y-2">
+                  {(newCheckup.customItems || []).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-gray-700">{item.name}</span>
+                      <button
+                        onClick={() => setNewCheckup({
+                          ...newCheckup,
+                          customItems: (newCheckup.customItems || []).filter((i) => i.id !== item.id),
+                        })}
+                        className="p-1 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        <MinusCircle className="w-4 h-4 text-red-400" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="添加检查项"
+                      className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const target = e.target as HTMLInputElement;
+                          if (target.value.trim()) {
+                            setNewCheckup({
+                              ...newCheckup,
+                              customItems: [...(newCheckup.customItems || []), {
+                                id: generateId(),
+                                name: target.value.trim(),
+                                completed: false,
+                              }],
+                            });
+                            target.value = '';
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const input = document.querySelector<HTMLInputElement>('[placeholder="添加检查项"]');
+                        if (input && input.value.trim()) {
+                          setNewCheckup({
+                            ...newCheckup,
+                            customItems: [...(newCheckup.customItems || []), {
+                              id: generateId(),
+                              name: input.value.trim(),
+                              completed: false,
+                            }],
+                          });
+                          input.value = '';
+                        }
+                      }}
+                      className="p-1.5 rounded-lg bg-sky-100 text-sky-600 hover:bg-sky-200 transition-colors"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -691,6 +965,174 @@ export default function PregnancyPage() {
                 >
                   保存设置
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editingCheckup && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-800">编辑产检</h2>
+              <button
+                onClick={() => { setShowEditModal(false); setEditingCheckup(null); }}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">检查日期</label>
+                <input
+                  type="date"
+                  value={editingCheckup.date}
+                  onChange={(e) => setEditingCheckup({ ...editingCheckup, date: e.target.value })}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">孕周</label>
+                <input
+                  type="number"
+                  value={editingCheckup.week}
+                  onChange={(e) => setEditingCheckup({ ...editingCheckup, week: Number(e.target.value) })}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">检查项目</label>
+                <input
+                  type="text"
+                  value={editingCheckup.type}
+                  onChange={(e) => setEditingCheckup({ ...editingCheckup, type: e.target.value })}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">主治医生</label>
+                <input
+                  type="text"
+                  value={editingCheckup.doctor || ''}
+                  onChange={(e) => setEditingCheckup({ ...editingCheckup, doctor: e.target.value })}
+                  placeholder="可选"
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">医院</label>
+                <input
+                  type="text"
+                  value={editingCheckup.hospital || ''}
+                  onChange={(e) => setEditingCheckup({ ...editingCheckup, hospital: e.target.value })}
+                  placeholder="可选"
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">提前提醒天数</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={30}
+                  value={editingCheckup.remindDaysBefore ?? 3}
+                  onChange={(e) => setEditingCheckup({ ...editingCheckup, remindDaysBefore: Number(e.target.value) })}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">备注</label>
+                <textarea
+                  value={editingCheckup.notes || ''}
+                  onChange={(e) => setEditingCheckup({ ...editingCheckup, notes: e.target.value })}
+                  placeholder="检查注意事项等"
+                  rows={3}
+                  className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">自定义检查项</label>
+                <div className="space-y-2">
+                  {(editingCheckup.customItems || []).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggleCustomItem(item.id)}
+                          className="text-gray-400 hover:text-sky-500 transition-colors"
+                        >
+                          {item.completed ? (
+                            <CheckSquare className="w-4 h-4 text-mint-500" />
+                          ) : (
+                            <Square className="w-4 h-4" />
+                          )}
+                        </button>
+                        <span className={cn('text-sm', item.completed ? 'text-gray-400 line-through' : 'text-gray-700')}>
+                          {item.name}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveCustomItem(item.id)}
+                        className="p-1 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        <MinusCircle className="w-4 h-4 text-red-400" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newCustomItemName}
+                      onChange={(e) => setNewCustomItemName(e.target.value)}
+                      placeholder="添加检查项"
+                      className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-gray-200 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleAddCustomItem();
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={handleAddCustomItem}
+                      className="p-1.5 rounded-lg bg-sky-100 text-sky-600 hover:bg-sky-200 transition-colors"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => handleDeleteCheckup(editingCheckup.id)}
+                  className="px-4 py-3 rounded-full text-red-500 bg-red-50 hover:bg-red-100 font-medium transition-colors flex items-center gap-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  删除
+                </button>
+                <div className="flex-1 flex gap-3">
+                  <button
+                    onClick={() => { setShowEditModal(false); setEditingCheckup(null); }}
+                    className="flex-1 btn-secondary"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleSaveEditCheckup}
+                    className="flex-1 bg-gradient-to-r from-sky-400 to-blue-500 text-white px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all"
+                  >
+                    保存
+                  </button>
+                </div>
               </div>
             </div>
           </div>

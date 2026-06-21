@@ -16,6 +16,9 @@ import {
   Users,
   Eye,
   ArrowRightLeft,
+  Circle,
+  AlertTriangle,
+  Clock,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import LifeStageMigrationWizard from '@/components/migration/LifeStageMigrationWizard';
@@ -134,11 +137,13 @@ const stages = [
 ];
 
 export default function Home() {
-  const { cycleData, getNextPeriodDate, getOvulationDate } = useAppStore();
+  const { cycleData, getNextPeriodDate, getOvulationDate, getTodayPrenatalTodos, getOverduePrenatalCheckups, toggleCheckupComplete } = useAppStore();
   const [showMigrationWizard, setShowMigrationWizard] = useState(false);
 
   const nextPeriod = getNextPeriodDate();
   const ovulationDate = getOvulationDate();
+  const todayPrenatalTodos = getTodayPrenatalTodos();
+  const overduePrenatalCheckups = getOverduePrenatalCheckups();
 
   const today = new Date();
   const lastPeriodDate = new Date(cycleData.lastPeriodDate);
@@ -223,6 +228,94 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {(todayPrenatalTodos.length > 0 || overduePrenatalCheckups.length > 0) && (
+        <section className="mb-12 md:mb-16">
+          <div className="card p-6 bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center shadow-md">
+                  <Stethoscope className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800">今日产检待办</h3>
+                  <p className="text-xs text-gray-500">
+                    {todayPrenatalTodos.length + overduePrenatalCheckups.length} 项待完成
+                    {overduePrenatalCheckups.length > 0 && (
+                      <span className="text-red-500 ml-1">· {overduePrenatalCheckups.length} 项已逾期</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/pregnancy"
+                className="text-sm text-sky-500 font-medium flex items-center gap-1 hover:gap-2 transition-all"
+              >
+                查看全部 <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {overduePrenatalCheckups.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-xl"
+                >
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        {c.type}
+                        <span className="ml-2 text-xs text-red-500 font-normal">已逾期</span>
+                      </p>
+                      <p className="text-xs text-red-400">
+                        预约: {c.date} · 第{c.week}周
+                        {c.hospital && <span className="ml-1">· {c.hospital}</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleCheckupComplete(c.id)}
+                    className="text-xs px-3 py-1.5 bg-mint-100 text-mint-600 rounded-full hover:bg-mint-200 transition-colors whitespace-nowrap"
+                  >
+                    标记完成
+                  </button>
+                </div>
+              ))}
+              {todayPrenatalTodos.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between p-3 bg-white/70 rounded-xl"
+                >
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => toggleCheckupComplete(c.id)} className="shrink-0">
+                      <Circle className="w-4 h-4 text-sky-400 hover:text-sky-500" />
+                    </button>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{c.type}</p>
+                      <p className="text-xs text-gray-500">
+                        {c.date} · 第{c.week}周
+                        {c.hospital && <span className="ml-1">· {c.hospital}</span>}
+                        {c.customItems && c.customItems.length > 0 && (
+                          <span className="ml-1">· {c.customItems.length}项自定义检查</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3 h-3 text-amber-500" />
+                    <span className="text-xs text-amber-600">
+                      {(() => {
+                        const diff = Math.ceil((new Date(c.date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                        return diff === 0 ? '今天' : diff === 1 ? '明天' : `${diff}天后`;
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="text-center mb-8">
