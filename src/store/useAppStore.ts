@@ -1497,11 +1497,28 @@ export const useAppStore = create<AppState>()(
         sourceDataCount += state.temperatureRecords.length;
         sourceDataCount += state.painRecords.length;
 
+        const temperatureCount = state.temperatureRecords.length;
+        const periodRecordsCount = state.cycleData.records.length;
+
+        let estimatedOvulationRecordsCount = 0;
+        if (to === 'pregnancy-prep' && state.temperatureRecords.length > 0) {
+          const syncItems = syncTemperatureToOvulation(state.temperatureRecords);
+          estimatedOvulationRecordsCount = syncItems.length;
+        }
+
         let migratedDataCount = mapping.fieldMappings.length;
 
         if (to === 'pregnancy-prep' || to === 'pregnancy') {
           if (!state.cycleData.lastPeriodDate) {
             warnings.push('未设置末次月经日期，迁移后需手动设置以启用预测功能');
+          }
+        }
+
+        if (to === 'pregnancy-prep') {
+          if (state.temperatureRecords.length === 0) {
+            warnings.push('暂无体温记录，迁移后排卵日历将为空，建议添加体温记录');
+          } else {
+            warnings.push(`将从 ${temperatureCount} 条体温记录中自动生成约 ${estimatedOvulationRecordsCount} 条排卵日历数据`);
           }
         }
 
@@ -1522,7 +1539,7 @@ export const useAppStore = create<AppState>()(
           warnings.push('该迁移路径暂无自动派生字段');
         }
 
-        return { mapping, sourceDataCount, migratedDataCount, warnings };
+        return { mapping, sourceDataCount, migratedDataCount, temperatureCount, periodRecordsCount, estimatedOvulationRecordsCount, warnings };
       },
 
       migrateLifeStage: (targetStage: LifeStage): MigrationResult => {
@@ -1552,6 +1569,40 @@ export const useAppStore = create<AppState>()(
           derivedFields.push('末次月经(孕期/备孕)');
         }
 
+        if (targetStage === 'pregnancy-prep') {
+          const syncItems = syncTemperatureToOvulation(state.temperatureRecords);
+          const existingOvDates = new Set(state.ovulationRecords.map((r) => r.date));
+          const newOvRecords: OvulationRecord[] = syncItems
+            .filter((s) => !existingOvDates.has(s.date))
+            .map((s) => ({
+              id: s.id,
+              date: s.date,
+              basalTemp: s.basalTemp,
+              tempShift: s.tempShift,
+              fertileWindow: s.fertileWindow,
+              cervicalMucus: undefined,
+              ovulationTest: 'none' as const,
+              lhTest: 'none' as const,
+            }));
+
+          if (newOvRecords.length > 0) {
+            updates.ovulationRecords = [...state.ovulationRecords, ...newOvRecords];
+            derivedFields.push(`排卵记录（${newOvRecords.length}条）`);
+            warnings.push(`已从 ${state.temperatureRecords.length} 条体温记录中生成 ${newOvRecords.length} 条排卵日历数据`);
+          } else if (state.temperatureRecords.length === 0) {
+            warnings.push('暂无体温记录，排卵日历为空，建议添加基础体温记录');
+          } else {
+            warnings.push('所有体温记录对应的排卵日期已存在，未新增排卵记录');
+          }
+
+          const hasOvulationMeds = state.medicationReminders.some(
+            (r) => r.category === 'ovulation'
+          );
+          if (!hasOvulationMeds) {
+            warnings.push('建议在用药中心添加促排药物提醒（如来曲唑等）');
+          }
+        }
+
         if (targetStage === 'pregnancy') {
           const hasFolicAcid = state.medicationReminders.some(
             (r) => r.category === 'pregnancy' && r.name.includes('叶酸')
@@ -1573,20 +1624,19 @@ export const useAppStore = create<AppState>()(
           }
         }
 
-        if (targetStage === 'pregnancy-prep') {
-          const hasOvulationMeds = state.medicationReminders.some(
-            (r) => r.category === 'ovulation'
-          );
-          if (!hasOvulationMeds) {
-            warnings.push('建议在用药中心添加促排药物提醒（如来曲唑等）');
-          }
-        }
-
         if (targetStage === 'career' && state.cycleData.lastPeriodDate) {
           warnings.push('加班记录新增时会自动标注周期阶段，请在职场页添加加班记录');
         }
 
         set(updates);
+
+        const finalState = get();
+        const recordCounts = {
+          temperatureRecords: finalState.temperatureRecords.length,
+          periodRecords: finalState.cycleData.records.length,
+          ovulationRecords: finalState.ovulationRecords.length,
+          medicationReminders: finalState.medicationReminders.length,
+        };
 
         return {
           from,
@@ -1596,6 +1646,7 @@ export const useAppStore = create<AppState>()(
           derivedFields,
           skippedFields,
           warnings,
+          recordCounts,
         };
       },
 

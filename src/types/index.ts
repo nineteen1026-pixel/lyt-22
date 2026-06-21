@@ -370,6 +370,9 @@ export interface MigrationPreview {
   mapping: MigrationMappingSet;
   sourceDataCount: number;
   migratedDataCount: number;
+  temperatureCount: number;
+  periodRecordsCount: number;
+  estimatedOvulationRecordsCount: number;
   warnings: string[];
 }
 
@@ -381,6 +384,12 @@ export interface MigrationResult {
   derivedFields: string[];
   skippedFields: string[];
   warnings: string[];
+  recordCounts: {
+    temperatureRecords: number;
+    periodRecords: number;
+    ovulationRecords: number;
+    medicationReminders: number;
+  };
 }
 
 export interface Nutrient {

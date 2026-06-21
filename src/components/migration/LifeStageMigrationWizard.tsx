@@ -14,6 +14,7 @@ import {
   ArrowRightLeft,
   FileCheck,
   PartyPopper,
+  Heart,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
@@ -274,15 +275,24 @@ export default function LifeStageMigrationWizard({ onClose }: { onClose: () => v
           <p className="text-sm text-gray-500">确认迁移内容后再执行</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div className="card p-4 text-center">
-            <p className="text-3xl font-bold text-pink-600">{preview.sourceDataCount}</p>
-            <p className="text-sm text-gray-500 mt-1">源数据条目</p>
+            <p className="text-3xl font-bold text-pink-600">{preview.temperatureCount}</p>
+            <p className="text-sm text-gray-500 mt-1">体温记录</p>
           </div>
           <div className="card p-4 text-center">
-            <p className="text-3xl font-bold text-emerald-600">{preview.migratedDataCount}</p>
-            <p className="text-sm text-gray-500 mt-1">映射字段数</p>
+            <p className="text-3xl font-bold text-purple-600">{preview.periodRecordsCount}</p>
+            <p className="text-sm text-gray-500 mt-1">经期记录</p>
           </div>
+          {selectedTarget === 'pregnancy-prep' && (
+            <div className="card p-4 text-center col-span-2 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200">
+              <div className="flex items-center justify-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-600" />
+                <p className="text-3xl font-bold text-emerald-600">{preview.estimatedOvulationRecordsCount}</p>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">预计生成排卵记录</p>
+            </div>
+          )}
         </div>
 
         <div className="card p-4 bg-gradient-to-r from-pink-50 to-rose-50">
@@ -381,40 +391,71 @@ export default function LifeStageMigrationWizard({ onClose }: { onClose: () => v
       </div>
 
       {migrationResult && (
-        <div className="card p-4 space-y-3 text-left">
-          <h3 className="text-sm font-bold text-gray-700 mb-2">迁移报告</h3>
-          {migrationResult.migratedFields.length > 0 && (
-            <div>
-              <p className="text-xs text-gray-500 mb-1">已迁移字段</p>
-              <div className="flex flex-wrap gap-1.5">
-                {migrationResult.migratedFields.map((f, idx) => (
-                  <span key={idx} className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{f}</span>
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="card p-4 text-center bg-gradient-to-br from-pink-50 to-rose-50">
+              <p className="text-3xl font-bold text-pink-600">{migrationResult.recordCounts.temperatureRecords}</p>
+              <p className="text-xs text-gray-500 mt-1">体温记录</p>
+            </div>
+            <div className="card p-4 text-center bg-gradient-to-br from-purple-50 to-violet-50">
+              <p className="text-3xl font-bold text-purple-600">{migrationResult.recordCounts.periodRecords}</p>
+              <p className="text-xs text-gray-500 mt-1">经期记录</p>
+            </div>
+            {selectedTarget === 'pregnancy-prep' && (
+              <div className="card p-4 text-center col-span-2 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Sparkles className="w-5 h-5 text-emerald-600" />
+                  <p className="text-3xl font-bold text-emerald-600">{migrationResult.recordCounts.ovulationRecords}</p>
+                </div>
+                <p className="text-xs text-gray-600">排卵日历数据</p>
+              </div>
+            )}
+            {selectedTarget === 'pregnancy' && (
+              <div className="card p-4 text-center col-span-2 bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Heart className="w-5 h-5 text-sky-600" />
+                  <p className="text-3xl font-bold text-sky-600">{migrationResult.recordCounts.medicationReminders}</p>
+                </div>
+                <p className="text-xs text-gray-600">用药提醒</p>
+              </div>
+            )}
+          </div>
+
+          <div className="card p-4 space-y-3 text-left">
+            <h3 className="text-sm font-bold text-gray-700 mb-2">迁移报告</h3>
+            {migrationResult.migratedFields.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-1">已迁移字段</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {migrationResult.migratedFields.map((f, idx) => (
+                    <span key={idx} className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{f}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {migrationResult.derivedFields.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-1">自动派生字段</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {migrationResult.derivedFields.map((f, idx) => (
+                    <span key={idx} className="text-xs px-2 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">{f}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {migrationResult.warnings.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-1">注意事项</p>
+                {migrationResult.warnings.map((w, idx) => (
+                  <p key={idx} className="text-xs text-amber-700 flex items-start gap-1">
+                    <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                    {w}
+                  </p>
                 ))}
               </div>
-            </div>
-          )}
-          {migrationResult.derivedFields.length > 0 && (
-            <div>
-              <p className="text-xs text-gray-500 mb-1">自动派生字段</p>
-              <div className="flex flex-wrap gap-1.5">
-                {migrationResult.derivedFields.map((f, idx) => (
-                  <span key={idx} className="text-xs px-2 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">{f}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {migrationResult.warnings.length > 0 && (
-            <div>
-              <p className="text-xs text-gray-500 mb-1">注意事项</p>
-              {migrationResult.warnings.map((w, idx) => (
-                <p key={idx} className="text-xs text-amber-700 flex items-start gap-1">
-                  <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                  {w}
-                </p>
-              ))}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
 
       <div className="flex gap-3">
