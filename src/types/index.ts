@@ -1439,3 +1439,74 @@ export interface LifeStageKnowledge {
   totalArticles: number;
   totalAudios: number;
 }
+
+export type SymptomCategoryType = 'gynecology' | 'pregnancy' | 'postpartum' | 'menopause' | 'general';
+export type UrgencyLevel = 'normal' | 'observation' | 'consult' | 'urgent' | 'emergency';
+
+export interface Symptom {
+  id: string;
+  name: string;
+  category: SymptomCategoryType;
+  subcategory?: string;
+  description?: string;
+  icon?: string;
+  commonTriggers?: string[];
+}
+
+export interface SymptomCategory {
+  id: SymptomCategoryType;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  gradient: string;
+  subcategories: { id: string; name: string }[];
+}
+
+export interface SelectedSymptom {
+  symptomId: string;
+  severity: 'mild' | 'moderate' | 'severe';
+  duration?: string;
+  notes?: string;
+}
+
+export interface PossibleCondition {
+  id: string;
+  name: string;
+  description: string;
+  probability: number;
+  urgency: UrgencyLevel;
+  matchingSymptoms: string[];
+  keySymptoms: string[];
+}
+
+export interface SelfCareAdvice {
+  id: string;
+  title: string;
+  description: string;
+  steps: string[];
+  category: 'rest' | 'diet' | 'hygiene' | 'medication' | 'lifestyle';
+}
+
+export interface MedicalGuidance {
+  urgency: UrgencyLevel;
+  urgencyLabel: string;
+  urgencyColor: string;
+  urgencyBg: string;
+  description: string;
+  recommendedAction: string;
+  recommendedDepartment?: string;
+  timeFrame?: string;
+  warningSigns: string[];
+  preparationTips: string[];
+}
+
+export interface SymptomCheckResult {
+  selectedSymptoms: SelectedSymptom[];
+  possibleConditions: PossibleCondition[];
+  overallUrgency: UrgencyLevel;
+  medicalGuidance: MedicalGuidance;
+  selfCareAdvices: SelfCareAdvice[];
+  relatedKnowledgeIds: string[];
+  generatedAt: string;
+}

@@ -24,6 +24,7 @@ import ReminderCenter from "@/pages/ReminderCenter";
 import PartnerPrep from "@/pages/PartnerPrep";
 import KnowledgeBase from "@/pages/KnowledgeBase";
 import KnowledgeDetail from "@/pages/KnowledgeDetail";
+import SymptomChecker from "@/pages/SymptomChecker";
 
 export default function App() {
   return (
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/partner-prep" element={<PartnerPrep />} />
           <Route path="/knowledge" element={<KnowledgeBase />} />
           <Route path="/knowledge/:id" element={<KnowledgeDetail />} />
+          <Route path="/symptom-checker" element={<SymptomChecker />} />
         </Routes>
       </Layout>
     </Router>
